@@ -13,9 +13,10 @@ Bu课表是一款面向大学生日常使用的 Android 课程表应用。第一
 
 ## 应用截图
 
-![Bu课表首页](docs/images/home-screenshot.jpg)
-
-![Bu课表导入页面](docs/images/import-screenshot.jpg)
+<p>
+  <img src="docs/images/home-screenshot.jpg" alt="Bu课表周视图" width="320">
+  <img src="docs/images/today-screenshot.jpg" alt="Bu课表今日视图" width="320">
+</p>
 
 ## AI 截图/CSV 导入
 
