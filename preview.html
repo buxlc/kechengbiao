@@ -1,0 +1,1567 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>课程表 App UI 预览</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: oklch(1 0 0);
+      --surface: oklch(0.973 0.004 250);
+      --surface-strong: oklch(0.943 0.009 250);
+      --ink: oklch(0.205 0.014 248);
+      --muted: oklch(0.455 0.018 248);
+      --line: oklch(0.89 0.012 248);
+      --primary: oklch(0.56 0.145 75);
+      --primary-soft: oklch(0.925 0.045 75);
+      --accent: oklch(0.31 0.09 242);
+      --accent-soft: oklch(0.92 0.035 242);
+      --green: oklch(0.54 0.13 152);
+      --orange: oklch(0.69 0.13 65);
+      --red: oklch(0.55 0.16 28);
+      --radius: 14px;
+      --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+      --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+      --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+      --shadow: 0 10px 28px oklch(0.205 0.014 248 / 0.09);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100dvh;
+      margin: 0;
+      background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 32%);
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .shell {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .phone {
+      position: relative;
+      width: min(420px, 100%);
+      min-height: min(860px, calc(100dvh - 48px));
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: var(--bg);
+      box-shadow: 0 22px 70px oklch(0.205 0.014 248 / 0.18);
+      isolation: isolate;
+    }
+
+    .camera {
+      position: absolute;
+      top: 11px;
+      left: 50%;
+      z-index: 6;
+      width: 72px;
+      height: 22px;
+      border-radius: 999px;
+      background: oklch(0.12 0 0);
+      transform: translateX(-50%);
+    }
+
+    .statusbar {
+      height: 38px;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      padding: 0 22px 8px;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .content {
+      height: calc(100% - 38px);
+      min-height: 800px;
+      padding: 18px 18px 94px;
+      overflow: hidden auto;
+      scrollbar-width: none;
+    }
+
+    .content::-webkit-scrollbar {
+      display: none;
+    }
+
+    .page {
+      display: none;
+      animation: pageIn 360ms var(--ease-emphasized) both;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 27px;
+      line-height: 1.12;
+      font-weight: 780;
+      text-wrap: balance;
+    }
+
+    .title p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .icon-button {
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--bg);
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      transition:
+        transform 160ms var(--ease-standard),
+        background 160ms var(--ease-standard),
+        border-color 160ms var(--ease-standard);
+    }
+
+    .icon-button:hover {
+      background: var(--surface);
+      border-color: oklch(0.82 0.018 248);
+    }
+
+    .icon-button:active,
+    .primary-button:active,
+    .secondary-button:active,
+    .fab:active,
+    .nav-item:active,
+    .segment-button:active {
+      transform: scale(0.97);
+    }
+
+    .first-import {
+      position: relative;
+      overflow: hidden;
+      padding: 18px;
+      border: 1px solid oklch(0.82 0.047 75);
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, oklch(0.965 0.028 75), oklch(0.99 0.004 250));
+      animation: rise 520ms 60ms var(--ease-emphasized) both;
+    }
+
+    .first-import h2 {
+      margin: 0;
+      max-width: 13ch;
+      font-size: 22px;
+      line-height: 1.12;
+      font-weight: 800;
+    }
+
+    .first-import p {
+      margin: 9px 0 16px;
+      max-width: 29ch;
+      color: oklch(0.38 0.027 248);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .import-pattern {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      width: 108px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      opacity: 0.75;
+      pointer-events: none;
+    }
+
+    .import-pattern span {
+      height: 28px;
+      border-radius: 9px;
+      background: oklch(0.84 0.085 75 / 0.5);
+    }
+
+    .import-pattern span:nth-child(2),
+    .import-pattern span:nth-child(5),
+    .import-pattern span:nth-child(8) {
+      background: oklch(0.72 0.09 242 / 0.34);
+    }
+
+    .primary-button,
+    .secondary-button {
+      min-height: 42px;
+      border-radius: 999px;
+      padding: 0 16px;
+      font-weight: 760;
+      white-space: nowrap;
+      transition:
+        transform 170ms var(--ease-standard),
+        background 170ms var(--ease-standard),
+        border-color 170ms var(--ease-standard),
+        box-shadow 170ms var(--ease-standard);
+    }
+
+    .primary-button {
+      border: 0;
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 7px 14px oklch(0.56 0.145 75 / 0.22);
+    }
+
+    .primary-button:hover {
+      background: oklch(0.50 0.15 75);
+    }
+
+    .secondary-button {
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .secondary-button:hover {
+      background: var(--surface);
+    }
+
+    .segment {
+      margin-top: 16px;
+      padding: 4px;
+      border-radius: 999px;
+      background: var(--surface);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      animation: rise 520ms 100ms var(--ease-emphasized) both;
+    }
+
+    .segment-button {
+      height: 38px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 760;
+      transition:
+        color 180ms var(--ease-standard),
+        background 180ms var(--ease-standard),
+        transform 160ms var(--ease-standard);
+    }
+
+    .segment-button.active {
+      background: var(--bg);
+      color: var(--accent);
+      box-shadow: 0 3px 8px oklch(0.205 0.014 248 / 0.08);
+    }
+
+    .today-pane,
+    .week-pane {
+      display: none;
+    }
+
+    .today-pane.active,
+    .week-pane.active {
+      display: block;
+      animation: pageIn 300ms var(--ease-emphasized) both;
+    }
+
+    .week-strip {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+      animation: rise 520ms 150ms var(--ease-emphasized) both;
+    }
+
+    .day {
+      min-width: 0;
+      height: 58px;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      background: var(--surface);
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      gap: 2px;
+      transition:
+        transform 160ms var(--ease-standard),
+        background 160ms var(--ease-standard),
+        color 160ms var(--ease-standard);
+    }
+
+    .day strong {
+      color: inherit;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .day span {
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .day.active {
+      background: var(--accent);
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    .section-head {
+      margin-top: 22px;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      animation: rise 520ms 180ms var(--ease-emphasized) both;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.2;
+    }
+
+    .section-head span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .timeline {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .course {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 12px;
+      align-items: stretch;
+      animation: courseIn 520ms var(--ease-emphasized) both;
+      animation-delay: calc(var(--i) * 60ms + 220ms);
+    }
+
+    .time {
+      padding-top: 11px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      text-align: right;
+    }
+
+    .time strong {
+      display: block;
+      color: var(--ink);
+      font-size: 14px;
+    }
+
+    .course-card,
+    .panel,
+    .task-row,
+    .setting-row {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--bg);
+    }
+
+    .course-card {
+      min-height: 94px;
+      padding: 13px 14px;
+      transition:
+        transform 180ms var(--ease-standard),
+        border-color 180ms var(--ease-standard),
+        background 180ms var(--ease-standard);
+    }
+
+    .course-card:hover,
+    .task-row:hover,
+    .setting-row:hover {
+      transform: translateY(-2px);
+      border-color: oklch(0.82 0.018 248);
+      background: var(--surface);
+    }
+
+    .course-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .course-title h3 {
+      min-width: 0;
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .badge {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: var(--primary-soft);
+      color: oklch(0.35 0.11 75);
+      font-size: 11px;
+      font-weight: 760;
+    }
+
+    .badge.now {
+      background: var(--green);
+      color: white;
+    }
+
+    .badge.blue {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .meta {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .meta span {
+      border-radius: 999px;
+      background: var(--surface);
+      padding: 5px 8px;
+    }
+
+    .next-box {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      animation: rise 520ms 390ms var(--ease-emphasized) both;
+    }
+
+    .next-box p,
+    .next-box h3 {
+      margin: 0;
+    }
+
+    .next-box p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .next-box h3 {
+      margin-top: 3px;
+      font-size: 15px;
+      line-height: 1.3;
+    }
+
+    .progress-ring {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: conic-gradient(var(--primary) 74%, oklch(0.88 0.018 75) 0);
+      display: grid;
+      place-items: center;
+    }
+
+    .progress-ring::after {
+      content: "";
+      width: 30px;
+      height: 30px;
+      border-radius: inherit;
+      background: var(--surface);
+    }
+
+    .week-overview {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(7, 136px);
+      gap: 8px;
+      overflow: auto hidden;
+      padding-bottom: 8px;
+      scroll-snap-type: x proximity;
+      scrollbar-width: none;
+    }
+
+    .week-overview::-webkit-scrollbar {
+      display: none;
+    }
+
+    .week-column {
+      min-height: 420px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      scroll-snap-align: start;
+      animation: courseIn 520ms var(--ease-emphasized) both;
+      animation-delay: calc(var(--i) * 45ms + 140ms);
+    }
+
+    .week-column.today {
+      background: oklch(0.97 0.02 75);
+      border-color: oklch(0.82 0.047 75);
+    }
+
+    .week-day {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .week-day strong {
+      font-size: 15px;
+    }
+
+    .week-day span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .mini-course {
+      min-height: 54px;
+      margin-top: 7px;
+      padding: 8px;
+      border-radius: 11px;
+      background: var(--bg);
+      border: 1px solid oklch(0.91 0.01 248);
+    }
+
+    .mini-course strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .mini-course span {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+    }
+
+    .mini-course.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .mini-course.primary span {
+      color: oklch(0.92 0.012 242);
+    }
+
+    .panel {
+      margin-top: 14px;
+      padding: 15px;
+      animation: rise 520ms var(--ease-emphasized) both;
+    }
+
+    .panel h2,
+    .panel h3 {
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .panel p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .task-list,
+    .setting-list {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .task-row,
+    .setting-row {
+      min-height: 70px;
+      padding: 13px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      transition:
+        transform 180ms var(--ease-standard),
+        background 180ms var(--ease-standard),
+        border-color 180ms var(--ease-standard);
+      animation: courseIn 520ms var(--ease-emphasized) both;
+      animation-delay: calc(var(--i) * 60ms + 120ms);
+    }
+
+    .check {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 13px;
+    }
+
+    .check.done {
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .row-main strong {
+      display: block;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .row-main span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .row-meta {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .stats-grid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat {
+      min-height: 112px;
+      padding: 14px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      animation: rise 520ms var(--ease-emphasized) both;
+      animation-delay: calc(var(--i) * 55ms + 100ms);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .bar-list {
+      margin-top: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 64px 1fr 30px;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .bar {
+      height: 9px;
+      border-radius: 999px;
+      background: var(--surface-strong);
+      overflow: hidden;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--accent);
+      transform-origin: left;
+      animation: fillBar 700ms var(--ease-emphasized) both;
+      animation-delay: 180ms;
+    }
+
+    .setting-row {
+      grid-template-columns: 38px 1fr auto;
+    }
+
+    .setting-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--accent);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+    }
+
+    .switch {
+      width: 44px;
+      height: 26px;
+      border-radius: 999px;
+      background: var(--accent);
+      padding: 3px;
+    }
+
+    .switch::after {
+      content: "";
+      display: block;
+      width: 20px;
+      height: 20px;
+      margin-left: auto;
+      border-radius: 50%;
+      background: white;
+    }
+
+    .bottom-nav {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      left: 14px;
+      z-index: 5;
+      height: 66px;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: oklch(1 0 0 / 0.92);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      animation: navIn 520ms 260ms var(--ease-emphasized) both;
+    }
+
+    .nav-item {
+      height: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      gap: 3px;
+      font-size: 10.5px;
+      font-weight: 700;
+      transition:
+        color 170ms var(--ease-standard),
+        transform 160ms var(--ease-standard);
+    }
+
+    .nav-item .mark {
+      width: 22px;
+      height: 22px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+    }
+
+    .nav-item.active {
+      color: var(--accent);
+    }
+
+    .nav-item.active .mark {
+      background: var(--accent-soft);
+    }
+
+    .fab {
+      position: absolute;
+      right: 22px;
+      bottom: 92px;
+      z-index: 6;
+      width: 56px;
+      height: 56px;
+      border: 0;
+      border-radius: 18px;
+      background: var(--accent);
+      color: white;
+      font-size: 28px;
+      line-height: 1;
+      box-shadow: 0 12px 24px oklch(0.31 0.09 242 / 0.24);
+      transition:
+        transform 170ms var(--ease-standard),
+        opacity 170ms var(--ease-standard),
+        border-radius 170ms var(--ease-standard);
+      animation: pop 520ms 360ms var(--ease-emphasized) both;
+    }
+
+    .fab.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.84);
+    }
+
+    .scrim {
+      position: absolute;
+      inset: 0;
+      z-index: 9;
+      background: oklch(0.12 0 0 / 0);
+      pointer-events: none;
+      transition: background 300ms var(--ease-standard);
+    }
+
+    .scrim.open {
+      background: oklch(0.12 0 0 / 0.28);
+      pointer-events: auto;
+    }
+
+    .sheet {
+      position: absolute;
+      inset: auto 0 0;
+      z-index: 10;
+      max-height: 78%;
+      padding: 14px 18px max(20px, env(safe-area-inset-bottom));
+      border-radius: 24px 24px 0 0;
+      background: var(--bg);
+      box-shadow: 0 -18px 44px oklch(0.205 0.014 248 / 0.18);
+      transform: translateY(104%);
+      transition: transform 430ms var(--ease-emphasized);
+      overflow: hidden auto;
+    }
+
+    .sheet.open {
+      transform: translateY(0);
+    }
+
+    .handle {
+      width: 38px;
+      height: 4px;
+      margin: 0 auto 16px;
+      border-radius: 999px;
+      background: oklch(0.82 0.01 248);
+    }
+
+    .sheet-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .sheet h2 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.2;
+    }
+
+    .sheet p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .form {
+      margin-top: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .control {
+      width: 100%;
+      height: 46px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 0 12px;
+      outline: 0;
+      transition:
+        border-color 160ms var(--ease-standard),
+        background 160ms var(--ease-standard),
+        box-shadow 160ms var(--ease-standard);
+    }
+
+    .control::placeholder {
+      color: oklch(0.42 0.016 248);
+    }
+
+    .control:focus {
+      border-color: var(--primary);
+      background: var(--bg);
+      box-shadow: 0 0 0 3px oklch(0.56 0.145 75 / 0.18);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 116px;
+      gap: 10px;
+    }
+
+    .captcha {
+      height: 46px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface-strong);
+      color: var(--accent);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+
+    .import-actions {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .sync-state {
+      margin-top: 16px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .sync-row {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 10px;
+      align-items: start;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      margin: 4px auto 0;
+      border-radius: 50%;
+      background: var(--line);
+    }
+
+    .dot.done {
+      background: var(--green);
+    }
+
+    .dot.pending {
+      background: var(--orange);
+      animation: pulse 1500ms var(--ease-standard) infinite;
+    }
+
+    @keyframes pageIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(18px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes courseIn {
+      from {
+        opacity: 0;
+        transform: translateX(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes navIn {
+      from {
+        opacity: 0;
+        transform: translateY(26px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes pop {
+      from {
+        opacity: 0;
+        transform: scale(0.72);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes pulse {
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 0.78;
+      }
+      50% {
+        transform: scale(1.55);
+        opacity: 0.42;
+      }
+    }
+
+    @keyframes fillBar {
+      from {
+        transform: scaleX(0);
+      }
+      to {
+        transform: scaleX(1);
+      }
+    }
+
+    @media (max-width: 520px) {
+      .shell {
+        padding: 0;
+      }
+
+      .phone {
+        width: 100%;
+        min-height: 100dvh;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .content {
+        min-height: calc(100dvh - 38px);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="phone" aria-label="课程表安卓应用预览">
+      <div class="camera" aria-hidden="true"></div>
+      <div class="statusbar" aria-hidden="true">
+        <span>09:41</span>
+        <span>5G  86%</span>
+      </div>
+
+      <div class="content">
+        <section class="page active" data-page="home">
+          <header class="topbar">
+            <div class="title">
+              <h1>今天的课</h1>
+              <p>第 17 周 · 周五 · 6 月 26 日</p>
+            </div>
+            <button class="icon-button" type="button" aria-label="通知">⌁</button>
+          </header>
+
+          <section class="first-import" aria-labelledby="first-import-title">
+            <h2 id="first-import-title">先导入本学期课表</h2>
+            <p>第一次进入时从教务系统同步课程。之后新增导入入口会放在设置里。</p>
+            <button class="primary-button" data-open-import type="button">开始教务导入</button>
+            <div class="import-pattern" aria-hidden="true">
+              <span></span><span></span><span></span>
+              <span></span><span></span><span></span>
+              <span></span><span></span><span></span>
+            </div>
+          </section>
+
+          <div class="segment" aria-label="课程视图切换">
+            <button class="segment-button active" data-view="today" type="button">今日</button>
+            <button class="segment-button" data-view="week" type="button">一周总览</button>
+          </div>
+
+          <div class="today-pane active">
+            <nav class="week-strip" aria-label="本周日期">
+              <button class="day" type="button"><span>一</span><strong>22</strong></button>
+              <button class="day" type="button"><span>二</span><strong>23</strong></button>
+              <button class="day" type="button"><span>三</span><strong>24</strong></button>
+              <button class="day" type="button"><span>四</span><strong>25</strong></button>
+              <button class="day active" type="button"><span>五</span><strong>26</strong></button>
+              <button class="day" type="button"><span>六</span><strong>27</strong></button>
+              <button class="day" type="button"><span>日</span><strong>28</strong></button>
+            </nav>
+
+            <div class="section-head">
+              <h2>今日安排</h2>
+              <span>3 门课</span>
+            </div>
+
+            <section class="timeline" aria-label="今日课程列表">
+              <article class="course" style="--i: 0">
+                <div class="time"><strong>08:10</strong>1-2 节</div>
+                <div class="course-card">
+                  <div class="course-title">
+                    <h3>高等数学 A</h3>
+                    <span class="badge now">进行中</span>
+                  </div>
+                  <div class="meta">
+                    <span>明理楼 203</span>
+                    <span>周老师</span>
+                    <span>剩余 38 分钟</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="course" style="--i: 1">
+                <div class="time"><strong>10:20</strong>3-4 节</div>
+                <div class="course-card">
+                  <div class="course-title">
+                    <h3>大学英语听说</h3>
+                    <span class="badge">待上课</span>
+                  </div>
+                  <div class="meta">
+                    <span>文科楼 508</span>
+                    <span>Smith</span>
+                    <span>课前 20 分钟提醒</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="course" style="--i: 2">
+                <div class="time"><strong>14:00</strong>5-6 节</div>
+                <div class="course-card">
+                  <div class="course-title">
+                    <h3>计算机基础实验</h3>
+                    <span class="badge blue">实验课</span>
+                  </div>
+                  <div class="meta">
+                    <span>实验中心 B316</span>
+                    <span>李老师</span>
+                    <span>需带电脑</span>
+                  </div>
+                </div>
+              </article>
+            </section>
+
+            <aside class="next-box" aria-label="下一项提醒">
+              <div>
+                <p>下一项</p>
+                <h3>英语听说 · 10:20 开始</h3>
+              </div>
+              <div class="progress-ring" aria-hidden="true"></div>
+            </aside>
+          </div>
+
+          <div class="week-pane">
+            <div class="section-head">
+              <h2>一周课程总览</h2>
+              <span>横向滑动查看</span>
+            </div>
+            <section class="week-overview" aria-label="一周课程总览">
+              <article class="week-column" style="--i: 0">
+                <div class="week-day"><strong>周一</strong><span>22</span></div>
+                <div class="mini-course"><strong>线性代数</strong><span>08:10 · A204</span></div>
+                <div class="mini-course"><strong>体育</strong><span>15:40 · 操场</span></div>
+              </article>
+              <article class="week-column" style="--i: 1">
+                <div class="week-day"><strong>周二</strong><span>23</span></div>
+                <div class="mini-course"><strong>大学物理</strong><span>10:20 · B102</span></div>
+                <div class="mini-course"><strong>形势与政策</strong><span>19:00 · 线上</span></div>
+              </article>
+              <article class="week-column" style="--i: 2">
+                <div class="week-day"><strong>周三</strong><span>24</span></div>
+                <div class="mini-course"><strong>程序设计</strong><span>08:10 · C301</span></div>
+                <div class="mini-course"><strong>英语听说</strong><span>14:00 · 508</span></div>
+              </article>
+              <article class="week-column" style="--i: 3">
+                <div class="week-day"><strong>周四</strong><span>25</span></div>
+                <div class="mini-course"><strong>中国近现代史</strong><span>10:20 · D212</span></div>
+              </article>
+              <article class="week-column today" style="--i: 4">
+                <div class="week-day"><strong>周五</strong><span>26</span></div>
+                <div class="mini-course primary"><strong>高等数学 A</strong><span>08:10 · 明理楼 203</span></div>
+                <div class="mini-course"><strong>英语听说</strong><span>10:20 · 文科楼 508</span></div>
+                <div class="mini-course"><strong>计算机基础实验</strong><span>14:00 · B316</span></div>
+              </article>
+              <article class="week-column" style="--i: 5">
+                <div class="week-day"><strong>周六</strong><span>27</span></div>
+                <div class="mini-course"><strong>创新创业讲座</strong><span>09:00 · 报告厅</span></div>
+              </article>
+              <article class="week-column" style="--i: 6">
+                <div class="week-day"><strong>周日</strong><span>28</span></div>
+                <div class="mini-course"><strong>本周复盘</strong><span>20:30 · 自习计划</span></div>
+              </article>
+            </section>
+          </div>
+        </section>
+
+        <section class="page" data-page="overview">
+          <header class="topbar">
+            <div class="title">
+              <h1>一周总览</h1>
+              <p>第 17 周 · 课程密度与空闲时间</p>
+            </div>
+            <button class="icon-button" type="button" aria-label="切换周">↔</button>
+          </header>
+          <section class="week-overview" aria-label="全局一周总览">
+            <article class="week-column" style="--i: 0">
+              <div class="week-day"><strong>周一</strong><span>2 门</span></div>
+              <div class="mini-course"><strong>线性代数</strong><span>08:10 · A204</span></div>
+              <div class="mini-course"><strong>体育</strong><span>15:40 · 操场</span></div>
+            </article>
+            <article class="week-column" style="--i: 1">
+              <div class="week-day"><strong>周二</strong><span>2 门</span></div>
+              <div class="mini-course"><strong>大学物理</strong><span>10:20 · B102</span></div>
+              <div class="mini-course"><strong>形势与政策</strong><span>19:00 · 线上</span></div>
+            </article>
+            <article class="week-column" style="--i: 2">
+              <div class="week-day"><strong>周三</strong><span>2 门</span></div>
+              <div class="mini-course"><strong>程序设计</strong><span>08:10 · C301</span></div>
+              <div class="mini-course"><strong>英语听说</strong><span>14:00 · 508</span></div>
+            </article>
+            <article class="week-column" style="--i: 3">
+              <div class="week-day"><strong>周四</strong><span>1 门</span></div>
+              <div class="mini-course"><strong>中国近现代史</strong><span>10:20 · D212</span></div>
+            </article>
+            <article class="week-column today" style="--i: 4">
+              <div class="week-day"><strong>周五</strong><span>3 门</span></div>
+              <div class="mini-course primary"><strong>高等数学 A</strong><span>08:10 · 明理楼 203</span></div>
+              <div class="mini-course"><strong>英语听说</strong><span>10:20 · 文科楼 508</span></div>
+              <div class="mini-course"><strong>计算机基础实验</strong><span>14:00 · B316</span></div>
+            </article>
+            <article class="week-column" style="--i: 5">
+              <div class="week-day"><strong>周六</strong><span>1 门</span></div>
+              <div class="mini-course"><strong>创新创业讲座</strong><span>09:00 · 报告厅</span></div>
+            </article>
+            <article class="week-column" style="--i: 6">
+              <div class="week-day"><strong>周日</strong><span>0 门</span></div>
+              <div class="mini-course"><strong>空闲</strong><span>可安排复习</span></div>
+            </article>
+          </section>
+          <section class="panel">
+            <h2>本周提醒</h2>
+            <p>周五课程最密集，周日无课。后续可以在这里放考试周、调课和补课信息。</p>
+          </section>
+        </section>
+
+        <section class="page" data-page="tasks">
+          <header class="topbar">
+            <div class="title">
+              <h1>任务</h1>
+              <p>作业、实验报告、考试复习</p>
+            </div>
+            <button class="icon-button" type="button" aria-label="筛选">≡</button>
+          </header>
+          <section class="panel">
+            <h2>今天要处理</h2>
+            <p>先把和今天课程相关的任务放在前面，减少来回找。</p>
+          </section>
+          <section class="task-list" aria-label="任务列表">
+            <article class="task-row" style="--i: 0">
+              <span class="check"></span>
+              <div class="row-main">
+                <strong>高数习题册 P86</strong>
+                <span>今晚 22:00 前 · 高等数学 A</span>
+              </div>
+              <span class="row-meta">高</span>
+            </article>
+            <article class="task-row" style="--i: 1">
+              <span class="check"></span>
+              <div class="row-main">
+                <strong>实验报告初稿</strong>
+                <span>周日 18:00 前 · 计算机基础实验</span>
+              </div>
+              <span class="row-meta">中</span>
+            </article>
+            <article class="task-row" style="--i: 2">
+              <span class="check done">✓</span>
+              <div class="row-main">
+                <strong>英语听力打卡</strong>
+                <span>已完成 · 大学英语听说</span>
+              </div>
+              <span class="row-meta">已做</span>
+            </article>
+          </section>
+        </section>
+
+        <section class="page" data-page="stats">
+          <header class="topbar">
+            <div class="title">
+              <h1>统计</h1>
+              <p>课程负荷、早八次数、任务完成度</p>
+            </div>
+            <button class="icon-button" type="button" aria-label="周期">⌄</button>
+          </header>
+          <section class="stats-grid" aria-label="课程统计">
+            <div class="stat" style="--i: 0">
+              <strong>11</strong>
+              <span>本周课程</span>
+            </div>
+            <div class="stat" style="--i: 1">
+              <strong>3</strong>
+              <span>早八次数</span>
+            </div>
+            <div class="stat" style="--i: 2">
+              <strong>76%</strong>
+              <span>任务完成度</span>
+            </div>
+            <div class="stat" style="--i: 3">
+              <strong>9h</strong>
+              <span>可用自习时间</span>
+            </div>
+          </section>
+          <section class="panel">
+            <h2>课程分布</h2>
+            <div class="bar-list">
+              <div class="bar-row"><span>周一</span><div class="bar"><span style="width: 42%"></span></div><span>2</span></div>
+              <div class="bar-row"><span>周二</span><div class="bar"><span style="width: 42%"></span></div><span>2</span></div>
+              <div class="bar-row"><span>周三</span><div class="bar"><span style="width: 42%"></span></div><span>2</span></div>
+              <div class="bar-row"><span>周四</span><div class="bar"><span style="width: 22%"></span></div><span>1</span></div>
+              <div class="bar-row"><span>周五</span><div class="bar"><span style="width: 64%"></span></div><span>3</span></div>
+            </div>
+          </section>
+        </section>
+
+        <section class="page" data-page="settings">
+          <header class="topbar">
+            <div class="title">
+              <h1>设置</h1>
+              <p>教务导入、提醒、显示偏好</p>
+            </div>
+            <button class="icon-button" type="button" aria-label="搜索">⌕</button>
+          </header>
+          <section class="setting-list" aria-label="设置列表">
+            <button class="setting-row" data-open-import type="button" style="--i: 0">
+              <span class="setting-icon">导</span>
+              <span class="row-main">
+                <strong>教务与导入</strong>
+                <span>后续新增学校、重新同步、手动导入都放在这里</span>
+              </span>
+              <span class="row-meta">进入</span>
+            </button>
+            <button class="setting-row" type="button" style="--i: 1">
+              <span class="setting-icon">铃</span>
+              <span class="row-main">
+                <strong>课程提醒</strong>
+                <span>课前提醒、迟到风险、地点变更</span>
+              </span>
+              <span class="switch" aria-hidden="true"></span>
+            </button>
+            <button class="setting-row" type="button" style="--i: 2">
+              <span class="setting-icon">显</span>
+              <span class="row-main">
+                <strong>显示方式</strong>
+                <span>默认首页、周视图密度、节次时间</span>
+              </span>
+              <span class="row-meta">默认</span>
+            </button>
+            <button class="setting-row" type="button" style="--i: 3">
+              <span class="setting-icon">数</span>
+              <span class="row-main">
+                <strong>数据与备份</strong>
+                <span>本地备份、导出 ICS、清理缓存</span>
+              </span>
+              <span class="row-meta">2.4 MB</span>
+            </button>
+          </section>
+        </section>
+      </div>
+
+      <button class="fab" type="button" aria-label="添加课程">+</button>
+
+      <nav class="bottom-nav" aria-label="主导航">
+        <button class="nav-item active" data-nav="home" type="button">
+          <span class="mark" aria-hidden="true">▦</span>
+          <span>首页</span>
+        </button>
+        <button class="nav-item" data-nav="overview" type="button">
+          <span class="mark" aria-hidden="true">□</span>
+          <span>总览</span>
+        </button>
+        <button class="nav-item" data-nav="tasks" type="button">
+          <span class="mark" aria-hidden="true">✓</span>
+          <span>任务</span>
+        </button>
+        <button class="nav-item" data-nav="stats" type="button">
+          <span class="mark" aria-hidden="true">◇</span>
+          <span>统计</span>
+        </button>
+        <button class="nav-item" data-nav="settings" type="button">
+          <span class="mark" aria-hidden="true">○</span>
+          <span>设置</span>
+        </button>
+      </nav>
+
+      <div class="scrim" id="scrim"></div>
+      <section class="sheet" id="sheet" aria-label="教务导入面板">
+        <div class="handle" aria-hidden="true"></div>
+        <div class="sheet-head">
+          <div>
+            <h2>教务导入</h2>
+            <p>第一次进入在首页展示。以后重新同步或新增学校，从设置进入。</p>
+          </div>
+          <button class="icon-button" id="closeSheet" type="button" aria-label="关闭导入面板">×</button>
+        </div>
+
+        <form class="form">
+          <div class="field">
+            <label for="school">学校</label>
+            <select class="control" id="school">
+              <option>选择学校</option>
+              <option>示例大学</option>
+              <option>手动填写教务地址</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="account">教务账号</label>
+            <input class="control" id="account" inputmode="text" placeholder="学号或统一身份认证账号">
+          </div>
+          <div class="field">
+            <label for="password">密码</label>
+            <input class="control" id="password" type="password" placeholder="仅用于本次登录验证">
+          </div>
+          <div class="field">
+            <label for="captcha">验证码</label>
+            <div class="split">
+              <input class="control" id="captcha" inputmode="text" placeholder="输入验证码">
+              <div class="captcha" aria-label="验证码示例">7K2P</div>
+            </div>
+          </div>
+          <div class="import-actions">
+            <button class="secondary-button" type="button">手动导入</button>
+            <button class="primary-button" type="button">开始同步</button>
+          </div>
+        </form>
+
+        <div class="sync-state" aria-label="同步状态">
+          <div class="sync-row">
+            <span class="dot done" aria-hidden="true"></span>
+            <span>连接教务系统</span>
+          </div>
+          <div class="sync-row">
+            <span class="dot pending" aria-hidden="true"></span>
+            <span>读取本学期课表与教学周</span>
+          </div>
+          <div class="sync-row">
+            <span class="dot" aria-hidden="true"></span>
+            <span>生成本地课程提醒</span>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const sheet = document.querySelector("#sheet");
+    const scrim = document.querySelector("#scrim");
+    const fab = document.querySelector(".fab");
+    const closeSheet = document.querySelector("#closeSheet");
+    const openImportButtons = document.querySelectorAll("[data-open-import]");
+    const navButtons = document.querySelectorAll("[data-nav]");
+    const pages = document.querySelectorAll("[data-page]");
+    const segmentButtons = document.querySelectorAll("[data-view]");
+    const todayPane = document.querySelector(".today-pane");
+    const weekPane = document.querySelector(".week-pane");
+
+    function setSheet(open) {
+      sheet.classList.toggle("open", open);
+      scrim.classList.toggle("open", open);
+    }
+
+    function setPage(pageName) {
+      pages.forEach((page) => {
+        page.classList.toggle("active", page.dataset.page === pageName);
+      });
+      navButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.nav === pageName);
+      });
+      fab.classList.toggle("hidden", pageName === "stats" || pageName === "settings");
+      setSheet(false);
+    }
+
+    function setCourseView(viewName) {
+      segmentButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.view === viewName);
+      });
+      todayPane.classList.toggle("active", viewName === "today");
+      weekPane.classList.toggle("active", viewName === "week");
+    }
+
+    openImportButtons.forEach((button) => {
+      button.addEventListener("click", () => setSheet(true));
+    });
+
+    navButtons.forEach((button) => {
+      button.addEventListener("click", () => setPage(button.dataset.nav));
+    });
+
+    segmentButtons.forEach((button) => {
+      button.addEventListener("click", () => setCourseView(button.dataset.view));
+    });
+
+    closeSheet.addEventListener("click", () => setSheet(false));
+    scrim.addEventListener("click", () => setSheet(false));
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setSheet(false);
+    });
+  </script>
+</body>
+</html>
