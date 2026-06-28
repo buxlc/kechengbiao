@@ -6,6 +6,7 @@ import com.bu.kebiao.data.preferences.UserPreferences
 import com.bu.kebiao.domain.model.ClassTime
 import com.bu.kebiao.domain.repository.ClassTimeRepository
 import com.bu.kebiao.domain.repository.CourseRepository
+import com.bu.kebiao.liveupdate.CourseLiveUpdateScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -30,7 +31,8 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val classTimeRepository: ClassTimeRepository,
     private val courseRepository: CourseRepository,
-    private val userPreferences: UserPreferences
+    private val userPreferences: UserPreferences,
+    private val liveUpdateScheduler: CourseLiveUpdateScheduler
 ) : ViewModel() {
 
     val uiState: StateFlow<SettingsUiState> = combine(
@@ -60,6 +62,7 @@ class SettingsViewModel @Inject constructor(
     fun updateCurrentWeek(week: Int) {
         viewModelScope.launch {
             userPreferences.updateCurrentWeek(week)
+            liveUpdateScheduler.refreshNow()
         }
     }
 
@@ -77,6 +80,7 @@ class SettingsViewModel @Inject constructor(
             if (calculatedWeek in 1..totalWeeks) {
                 userPreferences.updateCurrentWeek(calculatedWeek)
             }
+            liveUpdateScheduler.refreshNow()
         }
     }
 
@@ -89,6 +93,7 @@ class SettingsViewModel @Inject constructor(
     fun updateClassTime(classTime: ClassTime) {
         viewModelScope.launch {
             classTimeRepository.updateClassTime(classTime)
+            liveUpdateScheduler.refreshNow()
         }
     }
 
@@ -110,6 +115,7 @@ class SettingsViewModel @Inject constructor(
             courseRepository.deleteBySource("excel")
             courseRepository.deleteBySource("pdf")
             userPreferences.setHasImported(false)
+            liveUpdateScheduler.refreshNow()
         }
     }
 }

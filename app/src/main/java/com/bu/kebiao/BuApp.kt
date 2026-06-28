@@ -9,15 +9,25 @@ import com.bu.kebiao.data.repository.CourseRepositoryImpl
 import com.bu.kebiao.domain.repository.ClassTimeRepository
 import com.bu.kebiao.domain.repository.CourseColorRepository
 import com.bu.kebiao.domain.repository.CourseRepository
+import com.bu.kebiao.liveupdate.CourseLiveUpdateScheduler
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
 import javax.inject.Singleton
 
 @HiltAndroidApp
-class BuApp : Application()
+class BuApp : Application() {
+    @Inject
+    lateinit var liveUpdateScheduler: CourseLiveUpdateScheduler
+
+    override fun onCreate() {
+        super.onCreate()
+        liveUpdateScheduler.refreshNow()
+    }
+}
 
 @Module
 @InstallIn(SingletonComponent::class)

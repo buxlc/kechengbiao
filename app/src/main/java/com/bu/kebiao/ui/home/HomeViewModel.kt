@@ -8,6 +8,7 @@ import com.bu.kebiao.domain.model.Course
 import com.bu.kebiao.domain.repository.ClassTimeRepository
 import com.bu.kebiao.domain.repository.CourseColorRepository
 import com.bu.kebiao.domain.repository.CourseRepository
+import com.bu.kebiao.liveupdate.CourseLiveUpdateScheduler
 import com.bu.kebiao.ui.courseedit.CourseEditDraft
 import com.bu.kebiao.ui.courseedit.CourseWeekParser
 import com.bu.kebiao.ui.courseedit.toCourse
@@ -51,7 +52,8 @@ class HomeViewModel @Inject constructor(
     private val courseRepository: CourseRepository,
     private val classTimeRepository: ClassTimeRepository,
     private val courseColorRepository: CourseColorRepository,
-    private val userPreferences: UserPreferences
+    private val userPreferences: UserPreferences,
+    private val liveUpdateScheduler: CourseLiveUpdateScheduler
 ) : ViewModel() {
 
     private val isTodayViewFlow = MutableStateFlow(true)
@@ -165,12 +167,14 @@ class HomeViewModel @Inject constructor(
 
             courseColorRepository.upsertColor(name, finalColor)
             courseRepository.updateColorByCourseName(name, finalColor)
+            liveUpdateScheduler.refreshNow()
         }
     }
 
     fun deleteCourse(course: Course) {
         viewModelScope.launch {
             courseRepository.deleteCourse(course)
+            liveUpdateScheduler.refreshNow()
         }
     }
 }

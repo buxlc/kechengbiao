@@ -10,6 +10,7 @@ import com.bu.kebiao.data.adapter.SchoolInfo
 import com.bu.kebiao.data.preferences.UserPreferences
 import com.bu.kebiao.domain.model.Course
 import com.bu.kebiao.domain.repository.CourseRepository
+import com.bu.kebiao.liveupdate.CourseLiveUpdateScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +59,7 @@ enum class ImportScreen {
 class ImportViewModel @Inject constructor(
     private val courseRepository: CourseRepository,
     private val userPreferences: UserPreferences,
+    private val liveUpdateScheduler: CourseLiveUpdateScheduler,
     private val app: Application
 ) : ViewModel() {
 
@@ -267,6 +269,7 @@ class ImportViewModel @Inject constructor(
                     .forEach { source -> courseRepository.deleteBySource(source) }
                 courseRepository.insertCourses(courses)
                 userPreferences.setHasImported(true)
+                liveUpdateScheduler.refreshNow()
                 val school = _uiState.value.selectedSchool
                 if (school != null) {
                     userPreferences.updateEduInfo(school.name, "")
