@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.bu.kebiao.MainActivity
@@ -46,11 +47,7 @@ class CourseLiveUpdateNotifier @Inject constructor(
             .setSmallIcon(R.drawable.ic_notification_course)
             .setContentTitle(text.title)
             .setContentText(text.content)
-            .setStyle(
-                NotificationCompat.InboxStyle().also { style ->
-                    text.expandedLines.ifEmpty { listOf(text.expandedText) }.forEach(style::addLine)
-                }
-            )
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text.expandedText))
             .setContentIntent(openPendingIntent)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setOngoing(true)
@@ -69,6 +66,7 @@ class CourseLiveUpdateNotifier @Inject constructor(
             }
 
         manager.notify(NOTIFICATION_ID, notification)
+        Log.d(TAG, "show live update state=${state::class.java.simpleName} title=${text.title} content=${text.content}")
     }
 
     fun cancel() {
@@ -103,5 +101,6 @@ class CourseLiveUpdateNotifier @Inject constructor(
         private const val CHANNEL_ID = "course_live_update"
         private const val NOTIFICATION_ID = 2001
         private const val REQUEST_PROMOTED_ONGOING_EXTRA = "android.requestPromotedOngoing"
+        private const val TAG = "CourseLiveUpdate"
     }
 }
