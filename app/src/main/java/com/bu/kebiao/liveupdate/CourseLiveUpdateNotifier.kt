@@ -46,7 +46,11 @@ class CourseLiveUpdateNotifier @Inject constructor(
             .setSmallIcon(R.drawable.ic_notification_course)
             .setContentTitle(text.title)
             .setContentText(text.content)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text.expandedText))
+            .setStyle(
+                NotificationCompat.InboxStyle().also { style ->
+                    text.expandedLines.ifEmpty { listOf(text.expandedText) }.forEach(style::addLine)
+                }
+            )
             .setContentIntent(openPendingIntent)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setOngoing(true)

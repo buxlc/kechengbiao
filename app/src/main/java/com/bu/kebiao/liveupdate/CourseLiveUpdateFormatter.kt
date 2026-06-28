@@ -13,11 +13,15 @@ object CourseLiveUpdateFormatter {
                         "${state.startTimeText}开始"
                     ).joinToString(" · "),
                     expandedText = buildString {
-                        appendLine("课程：${course.name.cleanOrFallback()}")
-                        appendLine("地点：${course.location.cleanOrFallback()}")
-                        appendLine("教师：${course.teacher.cleanOrFallback()}")
-                        append("倒计时：还有${state.minutesUntilStart}分钟上课")
-                    }
+                        appendLine(course.name.cleanOrFallback())
+                        appendLine("${course.location.cleanLocation()} · ${course.teacher.cleanTeacher()}")
+                        append("${state.startTimeText}开始 · 还有${state.minutesUntilStart}分钟")
+                    },
+                    expandedLines = listOf(
+                        course.name.cleanOrFallback(),
+                        "${course.location.cleanLocation()} · ${course.teacher.cleanTeacher()}",
+                        "${state.startTimeText}开始 · 还有${state.minutesUntilStart}分钟"
+                    )
                 )
             }
             is CourseLiveUpdateState.InClass -> {
@@ -26,16 +30,40 @@ object CourseLiveUpdateFormatter {
                     title = "正在上课",
                     content = listOfNotNull(
                         course.name.cleanOrNull(),
-                        "${state.endTimeText}下课"
+                        "第${state.sectionNumber}节"
                     ).joinToString(" · "),
                     expandedText = buildString {
-                        appendLine("课程：${course.name.cleanOrFallback()}")
-                        appendLine("地点：${course.location.cleanOrFallback()}")
-                        appendLine("教师：${course.teacher.cleanOrFallback()}")
-                        append("课间倒计时：还有${state.minutesUntilEnd}分钟下课")
+                        appendLine(course.name.cleanOrFallback())
+                        appendLine("${course.location.cleanLocation()} · ${course.teacher.cleanTeacher()}")
+                        append("第${state.sectionNumber}节 · 还有${state.minutesUntilSectionEnd}分钟下课")
                     },
+                    expandedLines = listOf(
+                        course.name.cleanOrFallback(),
+                        "${course.location.cleanLocation()} · ${course.teacher.cleanTeacher()}",
+                        "第${state.sectionNumber}节 · 还有${state.minutesUntilSectionEnd}分钟下课"
+                    ),
                     progress = state.progressPercent,
                     progressMax = 100
+                )
+            }
+            is CourseLiveUpdateState.SectionBreak -> {
+                val course = state.course
+                CourseLiveUpdateText(
+                    title = "课间休息",
+                    content = listOfNotNull(
+                        course.name.cleanOrNull(),
+                        "第${state.nextSectionNumber}节${state.nextSectionStartTimeText}开始"
+                    ).joinToString(" · "),
+                    expandedText = buildString {
+                        appendLine(course.name.cleanOrFallback())
+                        appendLine("${course.location.cleanLocation()} · ${course.teacher.cleanTeacher()}")
+                        append("第${state.nextSectionNumber}节 ${state.nextSectionStartTimeText}开始 · 还有${state.minutesUntilNextSection}分钟")
+                    },
+                    expandedLines = listOf(
+                        course.name.cleanOrFallback(),
+                        "${course.location.cleanLocation()} · ${course.teacher.cleanTeacher()}",
+                        "第${state.nextSectionNumber}节 ${state.nextSectionStartTimeText}开始 · 还有${state.minutesUntilNextSection}分钟"
+                    )
                 )
             }
         }
@@ -43,4 +71,8 @@ object CourseLiveUpdateFormatter {
     private fun String.cleanOrNull(): String? = trim().takeIf { it.isNotEmpty() }
 
     private fun String.cleanOrFallback(): String = cleanOrNull() ?: "未填写"
+
+    private fun String.cleanLocation(): String = cleanOrNull() ?: "地点待定"
+
+    private fun String.cleanTeacher(): String = cleanOrNull() ?: "未填写"
 }

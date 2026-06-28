@@ -40,17 +40,36 @@ class CourseLiveUpdateFormatterTest {
                 course = course,
                 startsAt = LocalDateTime.of(2026, 6, 30, 10, 0),
                 endsAt = LocalDateTime.of(2026, 6, 30, 11, 40),
-                endTimeText = "11:40",
-                minutesUntilEnd = 20,
+                sectionNumber = 3,
+                sectionEndTimeText = "10:45",
+                minutesUntilSectionEnd = 20,
                 progressPercent = 80
             )
         )
 
         assertEquals("正在上课", text.title)
-        assertEquals("大学英语 · 11:40下课", text.content)
-        assertEquals("课程：大学英语\n地点：语音室 402\n教师：未填写\n课间倒计时：还有20分钟下课", text.expandedText)
+        assertEquals("大学英语 · 第3节", text.content)
+        assertEquals("大学英语\n语音室 402 · 未填写\n第3节 · 还有20分钟下课", text.expandedText)
         assertEquals(100, text.progressMax)
         assertEquals(80, text.progress)
+    }
+
+    @Test
+    fun formatsSectionBreakState() {
+        val text = CourseLiveUpdateFormatter.format(
+            CourseLiveUpdateState.SectionBreak(
+                course = course,
+                nextSectionNumber = 4,
+                nextSectionStartsAt = LocalDateTime.of(2026, 6, 30, 10, 55),
+                nextSectionStartTimeText = "10:55",
+                minutesUntilNextSection = 6
+            )
+        )
+
+        assertEquals("课间休息", text.title)
+        assertEquals("大学英语 · 第4节10:55开始", text.content)
+        assertEquals("大学英语\n语音室 402 · 未填写\n第4节 10:55开始 · 还有6分钟", text.expandedText)
+        assertEquals(0, text.progressMax)
     }
 
     @Test
@@ -65,6 +84,6 @@ class CourseLiveUpdateFormatterTest {
             )
         )
 
-        assertEquals("课程：大学英语\n地点：未填写\n教师：未填写\n倒计时：还有3分钟上课", text.expandedText)
+        assertEquals("大学英语\n地点待定 · 未填写\n10:00开始 · 还有3分钟", text.expandedText)
     }
 }

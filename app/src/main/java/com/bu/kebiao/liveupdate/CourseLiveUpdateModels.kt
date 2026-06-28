@@ -18,9 +18,18 @@ sealed interface CourseLiveUpdateState {
         val course: Course,
         val startsAt: LocalDateTime,
         val endsAt: LocalDateTime,
-        val endTimeText: String,
-        val minutesUntilEnd: Int,
+        val sectionNumber: Int,
+        val sectionEndTimeText: String,
+        val minutesUntilSectionEnd: Int,
         val progressPercent: Int
+    ) : CourseLiveUpdateState
+
+    data class SectionBreak(
+        val course: Course,
+        val nextSectionNumber: Int,
+        val nextSectionStartsAt: LocalDateTime,
+        val nextSectionStartTimeText: String,
+        val minutesUntilNextSection: Int
     ) : CourseLiveUpdateState
 }
 
@@ -28,6 +37,7 @@ data class CourseLiveUpdateText(
     val title: String,
     val content: String,
     val expandedText: String,
+    val expandedLines: List<String> = emptyList(),
     val progress: Int = 0,
     val progressMax: Int = 0
 )

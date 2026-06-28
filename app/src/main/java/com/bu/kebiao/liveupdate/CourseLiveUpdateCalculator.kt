@@ -20,14 +20,18 @@ object CourseLiveUpdateCalculator {
         now: LocalDateTime
     ): CourseLiveUpdateState {
         val today = now.dayOfWeek.value
-        val slots = courses
+        val courseSlots = courses
             .filter { it.dayOfWeek == today && it.isActiveInWeek(currentWeek) }
             .mapNotNull { it.toSlot(classTimes, now) }
             .sortedWith(compareBy<CourseSlot> { it.startsAt }.thenBy { it.endsAt }.thenBy { it.course.name })
+        val sectionSlots = courses
+            .filter { it.dayOfWeek == today && it.isActiveInWeek(currentWeek) }
+            .flatMap { it.toSectionSlots(classTimes, now) }
+            .sortedWith(compareBy<SectionSlot> { it.startsAt }.thenBy { it.endsAt }.thenBy { it.course.name })
 
-        val active = slots
+        val active = sectionSlots
             .filter { !now.isBefore(it.startsAt) && now.isBefore(it.endsAt) }
-            .minWithOrNull(compareBy<CourseSlot> { it.endsAt }.thenBy { it.startsAt })
+            .minWithOrNull(compareBy<SectionSlot> { it.endsAt }.thenBy { it.startsAt })
 
         if (active != null) {
             val totalMinutes = Duration.between(active.startsAt, active.endsAt).toMinutes().coerceAtLeast(1)
@@ -37,13 +41,17 @@ object CourseLiveUpdateCalculator {
                 course = active.course,
                 startsAt = active.startsAt,
                 endsAt = active.endsAt,
-                endTimeText = active.endsAt.toLocalTime().format(timeFormatter),
-                minutesUntilEnd = minutesUntilEnd,
+                sectionNumber = active.sectionNumber,
+                sectionEndTimeText = active.endsAt.toLocalTime().format(timeFormatter),
+                minutesUntilSectionEnd = minutesUntilEnd,
                 progressPercent = ((elapsedMinutes * 100) / totalMinutes).toInt().coerceIn(0, 100)
             )
         }
 
-        val upcoming = slots
+        val sectionBreak = findSectionBreak(sectionSlots, now)
+        if (sectionBreak != null) return sectionBreak
+
+        val upcoming = courseSlots
             .filter { now.isBefore(it.startsAt) }
             .firstOrNull { Duration.between(now, it.startsAt).toMinutes() <= REMINDER_WINDOW_MINUTES }
             ?: return CourseLiveUpdateState.Hidden
@@ -72,6 +80,10 @@ object CourseLiveUpdateCalculator {
             val nextMinute = now.plusMinutes(1).withSecond(0).withNano(0)
             return minOf(nextMinute, state.endsAt)
         }
+        if (state is CourseLiveUpdateState.SectionBreak) {
+            val nextMinute = now.plusMinutes(1).withSecond(0).withNano(0)
+            return minOf(nextMinute, state.nextSectionStartsAt)
+        }
 
         val today = now.dayOfWeek.value
         return courses
@@ -81,6 +93,25 @@ object CourseLiveUpdateCalculator {
             .map { it.startsAt.minusMinutes(REMINDER_WINDOW_MINUTES) }
             .filter { !it.isBefore(now) }
             .minOrNull()
+    }
+
+    private fun findSectionBreak(sectionSlots: List<SectionSlot>, now: LocalDateTime): CourseLiveUpdateState.SectionBreak? {
+        val grouped = sectionSlots.groupBy { it.course }
+        grouped.forEach { (course, slots) ->
+            val sorted = slots.sortedBy { it.sectionNumber }
+            sorted.zipWithNext().forEach { (previous, next) ->
+                if (!now.isBefore(previous.endsAt) && now.isBefore(next.startsAt)) {
+                    return CourseLiveUpdateState.SectionBreak(
+                        course = course,
+                        nextSectionNumber = next.sectionNumber,
+                        nextSectionStartsAt = next.startsAt,
+                        nextSectionStartTimeText = next.startsAt.toLocalTime().format(timeFormatter),
+                        minutesUntilNextSection = Duration.between(now, next.startsAt).toMinutes().toInt().coerceAtLeast(0)
+                    )
+                }
+            }
+        }
+        return null
     }
 
     private fun Course.toSlot(classTimes: List<ClassTime>, now: LocalDateTime): CourseSlot? {
@@ -93,6 +124,22 @@ object CourseLiveUpdateCalculator {
             startsAt = LocalDateTime.of(date, start),
             endsAt = LocalDateTime.of(date, end)
         )
+    }
+
+    private fun Course.toSectionSlots(classTimes: List<ClassTime>, now: LocalDateTime): List<SectionSlot> {
+        val timesBySection = classTimes.associateBy { it.sectionNumber }
+        val date = now.toLocalDate()
+        return (startSection..endSection).mapNotNull { section ->
+            val classTime = timesBySection[section] ?: return@mapNotNull null
+            val start = classTime.startTime.parseLocalTime() ?: return@mapNotNull null
+            val end = classTime.endTime.parseLocalTime() ?: return@mapNotNull null
+            SectionSlot(
+                course = this,
+                sectionNumber = section,
+                startsAt = LocalDateTime.of(date, start),
+                endsAt = LocalDateTime.of(date, end)
+            )
+        }
     }
 
     private fun String.parseLocalTime(): LocalTime? =
@@ -114,6 +161,13 @@ object CourseLiveUpdateCalculator {
 
     private data class CourseSlot(
         val course: Course,
+        val startsAt: LocalDateTime,
+        val endsAt: LocalDateTime
+    )
+
+    private data class SectionSlot(
+        val course: Course,
+        val sectionNumber: Int,
         val startsAt: LocalDateTime,
         val endsAt: LocalDateTime
     )

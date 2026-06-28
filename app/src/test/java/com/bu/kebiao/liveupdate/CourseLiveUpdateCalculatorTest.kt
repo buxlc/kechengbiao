@@ -66,9 +66,32 @@ class CourseLiveUpdateCalculatorTest {
 
         state as CourseLiveUpdateState.InClass
         assertEquals("高等数学", state.course.name)
-        assertEquals("09:40", state.endTimeText)
-        assertEquals(90, state.minutesUntilEnd)
-        assertEquals(8, state.progressPercent)
+        assertEquals(1, state.sectionNumber)
+        assertEquals("08:45", state.sectionEndTimeText)
+        assertEquals(35, state.minutesUntilSectionEnd)
+        assertEquals(22, state.progressPercent)
+    }
+
+    @Test
+    fun breakBetweenSectionsShowsSectionBreak() {
+        val state = calculateAt(8, 50)
+
+        state as CourseLiveUpdateState.SectionBreak
+        assertEquals("高等数学", state.course.name)
+        assertEquals(2, state.nextSectionNumber)
+        assertEquals("08:55", state.nextSectionStartTimeText)
+        assertEquals(5, state.minutesUntilNextSection)
+    }
+
+    @Test
+    fun secondSectionCountsDownToItsOwnEnd() {
+        val state = calculateAt(9, 10)
+
+        state as CourseLiveUpdateState.InClass
+        assertEquals(2, state.sectionNumber)
+        assertEquals("09:40", state.sectionEndTimeText)
+        assertEquals(30, state.minutesUntilSectionEnd)
+        assertEquals(33, state.progressPercent)
     }
 
     @Test
@@ -150,6 +173,18 @@ class CourseLiveUpdateCalculatorTest {
         )
 
         assertEquals(LocalDateTime.of(monday, LocalTime.of(8, 11)), nextCheck)
+    }
+
+    @Test
+    fun nextCheckForSectionBreakIsNextMinute() {
+        val nextCheck = CourseLiveUpdateCalculator.nextCheckTime(
+            courses = listOf(course),
+            classTimes = classTimes,
+            currentWeek = 1,
+            now = LocalDateTime.of(monday, LocalTime.of(8, 50))
+        )
+
+        assertEquals(LocalDateTime.of(monday, LocalTime.of(8, 51)), nextCheck)
     }
 
     private fun calculateAt(hour: Int, minute: Int): CourseLiveUpdateState =
