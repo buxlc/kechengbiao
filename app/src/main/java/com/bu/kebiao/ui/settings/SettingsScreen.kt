@@ -1,6 +1,10 @@
 package com.bu.kebiao.ui.settings
 
 import android.app.DatePickerDialog
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.lazy.LazyColumn
@@ -123,6 +127,35 @@ fun SettingsScreen(
                 title = "\u7ba1\u7406\u4e0a\u8bfe\u65f6\u95f4",
                 subtitle = "\u8c03\u6574\u6bcf\u8282\u8bfe\u7684\u4e0a\u4e0b\u8bfe\u65f6\u95f4",
                 onClick = { showClassTimePage = true }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        SettingsSection("后台提醒") {
+            SettingsItem(
+                icon = Icons.Default.NotificationsActive,
+                title = "允许准时上课提醒",
+                subtitle = "打开通知、闹钟和后台运行权限后，清掉后台也更容易准时提醒",
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        runCatching {
+                            context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+                        }.onFailure {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.parse("package:${context.packageName}")
+                                }
+                            )
+                        }
+                    } else {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.parse("package:${context.packageName}")
+                            }
+                        )
+                    }
+                }
             )
         }
 

@@ -26,8 +26,11 @@ class CourseLiveUpdateFormatterTest {
             )
         )
 
-        assertEquals("12分钟后上课", text.title)
-        assertEquals("大学英语 · 语音室 402 · 10:00开始", text.content)
+        assertEquals("准备上课", text.title)
+        assertEquals("大学英语 · 10:00开始", text.content)
+        assertEquals("课程：大学英语\n地点：语音室 402\n教师：未填写\n倒计时：还有12分钟上课", text.expandedText)
+        assertEquals(0, text.progressMax)
+        assertEquals(0, text.progress)
     }
 
     @Test
@@ -37,12 +40,17 @@ class CourseLiveUpdateFormatterTest {
                 course = course,
                 startsAt = LocalDateTime.of(2026, 6, 30, 10, 0),
                 endsAt = LocalDateTime.of(2026, 6, 30, 11, 40),
-                endTimeText = "11:40"
+                endTimeText = "11:40",
+                minutesUntilEnd = 20,
+                progressPercent = 80
             )
         )
 
         assertEquals("正在上课", text.title)
-        assertEquals("大学英语 · 语音室 402 · 11:40下课", text.content)
+        assertEquals("大学英语 · 11:40下课", text.content)
+        assertEquals("课程：大学英语\n地点：语音室 402\n教师：未填写\n课间倒计时：还有20分钟下课", text.expandedText)
+        assertEquals(100, text.progressMax)
+        assertEquals(80, text.progress)
     }
 
     @Test
@@ -57,6 +65,6 @@ class CourseLiveUpdateFormatterTest {
             )
         )
 
-        assertEquals("大学英语 · 10:00开始", text.content)
+        assertEquals("课程：大学英语\n地点：未填写\n教师：未填写\n倒计时：还有3分钟上课", text.expandedText)
     }
 }

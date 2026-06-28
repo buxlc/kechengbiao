@@ -46,13 +46,18 @@ class CourseLiveUpdateNotifier @Inject constructor(
             .setSmallIcon(R.drawable.ic_notification_course)
             .setContentTitle(text.title)
             .setContentText(text.content)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text.content))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text.expandedText))
             .setContentIntent(openPendingIntent)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setOngoing(true)
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setColor(ContextCompat.getColor(context, R.color.bu_primary))
+            .apply {
+                if (text.progressMax > 0) {
+                    setProgress(text.progressMax, text.progress, false)
+                }
+            }
             .build()
             .also { notification ->
                 notification.extras.putBoolean(REQUEST_PROMOTED_ONGOING_EXTRA, true)

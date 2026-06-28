@@ -18,11 +18,16 @@ sealed interface CourseLiveUpdateState {
         val course: Course,
         val startsAt: LocalDateTime,
         val endsAt: LocalDateTime,
-        val endTimeText: String
+        val endTimeText: String,
+        val minutesUntilEnd: Int,
+        val progressPercent: Int
     ) : CourseLiveUpdateState
 }
 
 data class CourseLiveUpdateText(
     val title: String,
-    val content: String
+    val content: String,
+    val expandedText: String,
+    val progress: Int = 0,
+    val progressMax: Int = 0
 )

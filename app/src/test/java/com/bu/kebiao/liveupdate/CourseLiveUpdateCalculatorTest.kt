@@ -67,6 +67,8 @@ class CourseLiveUpdateCalculatorTest {
         state as CourseLiveUpdateState.InClass
         assertEquals("高等数学", state.course.name)
         assertEquals("09:40", state.endTimeText)
+        assertEquals(90, state.minutesUntilEnd)
+        assertEquals(8, state.progressPercent)
     }
 
     @Test
@@ -139,7 +141,7 @@ class CourseLiveUpdateCalculatorTest {
     }
 
     @Test
-    fun nextCheckForInClassStateIsClassEnd() {
+    fun nextCheckForInClassStateIsNextMinute() {
         val nextCheck = CourseLiveUpdateCalculator.nextCheckTime(
             courses = listOf(course),
             classTimes = classTimes,
@@ -147,7 +149,7 @@ class CourseLiveUpdateCalculatorTest {
             now = LocalDateTime.of(monday, LocalTime.of(8, 10))
         )
 
-        assertEquals(LocalDateTime.of(monday, LocalTime.of(9, 40)), nextCheck)
+        assertEquals(LocalDateTime.of(monday, LocalTime.of(8, 11)), nextCheck)
     }
 
     private fun calculateAt(hour: Int, minute: Int): CourseLiveUpdateState =

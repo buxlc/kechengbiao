@@ -30,11 +30,16 @@ object CourseLiveUpdateCalculator {
             .minWithOrNull(compareBy<CourseSlot> { it.endsAt }.thenBy { it.startsAt })
 
         if (active != null) {
+            val totalMinutes = Duration.between(active.startsAt, active.endsAt).toMinutes().coerceAtLeast(1)
+            val elapsedMinutes = Duration.between(active.startsAt, now).toMinutes().coerceAtLeast(0)
+            val minutesUntilEnd = Duration.between(now, active.endsAt).toMinutes().toInt().coerceAtLeast(0)
             return CourseLiveUpdateState.InClass(
                 course = active.course,
                 startsAt = active.startsAt,
                 endsAt = active.endsAt,
-                endTimeText = active.endsAt.toLocalTime().format(timeFormatter)
+                endTimeText = active.endsAt.toLocalTime().format(timeFormatter),
+                minutesUntilEnd = minutesUntilEnd,
+                progressPercent = ((elapsedMinutes * 100) / totalMinutes).toInt().coerceIn(0, 100)
             )
         }
 
@@ -64,7 +69,8 @@ object CourseLiveUpdateCalculator {
             return minOf(nextMinute, state.startsAt)
         }
         if (state is CourseLiveUpdateState.InClass) {
-            return state.endsAt
+            val nextMinute = now.plusMinutes(1).withSecond(0).withNano(0)
+            return minOf(nextMinute, state.endsAt)
         }
 
         val today = now.dayOfWeek.value
