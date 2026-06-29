@@ -63,6 +63,11 @@ class CourseLiveUpdateNotifier @Inject constructor(
             .also { notification ->
                 notification.extras.putBoolean(REQUEST_PROMOTED_ONGOING_EXTRA, true)
                 notification.extras.putBoolean("oplus_smallicon_use_app_icon", false)
+                if (XiaomiFocusSupport.canAttachIslandParam(context)) {
+                    XiaomiIslandParamBuilder.build(state, text)?.let { islandParam ->
+                        notification.extras.putString(MIUI_FOCUS_PARAM_EXTRA, islandParam)
+                    }
+                }
             }
 
         manager.notify(NOTIFICATION_ID, notification)
@@ -101,6 +106,7 @@ class CourseLiveUpdateNotifier @Inject constructor(
         private const val CHANNEL_ID = "course_live_update"
         private const val NOTIFICATION_ID = 2001
         private const val REQUEST_PROMOTED_ONGOING_EXTRA = "android.requestPromotedOngoing"
+        private const val MIUI_FOCUS_PARAM_EXTRA = "miui.focus.param"
         private const val TAG = "CourseLiveUpdate"
     }
 }

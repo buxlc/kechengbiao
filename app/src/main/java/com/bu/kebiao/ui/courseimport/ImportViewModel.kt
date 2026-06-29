@@ -7,10 +7,16 @@ import androidx.lifecycle.viewModelScope
 import com.bu.kebiao.data.adapter.AdapterInfo
 import com.bu.kebiao.data.adapter.SchoolAdapterLoader
 import com.bu.kebiao.data.adapter.SchoolInfo
+import com.bu.kebiao.data.adapter.cloud.AdapterCloudRepository
+import com.bu.kebiao.data.adapter.cloud.AdapterCloudSyncResult
+import com.bu.kebiao.data.adapter.cloud.SchoolIndexCloudRepository
 import com.bu.kebiao.data.preferences.UserPreferences
 import com.bu.kebiao.domain.model.Course
+import com.bu.kebiao.domain.model.Semester
 import com.bu.kebiao.domain.repository.CourseRepository
+import com.bu.kebiao.domain.repository.SemesterRepository
 import com.bu.kebiao.liveupdate.CourseLiveUpdateScheduler
+import com.bu.kebiao.widget.WidgetUpdateDispatcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +30,8 @@ import javax.inject.Inject
 enum class EduImportMode {
     UrlInput,
     SchoolPreset,
-    CsvText
+    CsvText,
+    IcsFile
 }
 
 data class ImportUiState(
@@ -38,13 +45,18 @@ data class ImportUiState(
     val isSchoolListLoading: Boolean = false,
     val importResult: Boolean? = null,
     val importMessage: String? = null,
+    val isRefreshingAdapter: Boolean = false,
     val webViewVisible: Boolean = false,
     val webViewUrl: String = "",
     val urlInputText: String = "",
     val csvTextInput: String = "",
     val csvTextErrors: List<String> = emptyList(),
     val currentScreen: ImportScreen = ImportScreen.EduHome,
-    val eduImportMode: EduImportMode = EduImportMode.UrlInput
+    val eduImportMode: EduImportMode = EduImportMode.UrlInput,
+    val semesters: List<Semester> = emptyList(),
+    val importAsNewSemester: Boolean = true,
+    val selectedImportSemesterId: String = "",
+    val newImportSemesterName: String = "新学期"
 )
 
 enum class ImportScreen {
@@ -58,8 +70,12 @@ enum class ImportScreen {
 @HiltViewModel
 class ImportViewModel @Inject constructor(
     private val courseRepository: CourseRepository,
+    private val semesterRepository: SemesterRepository,
     private val userPreferences: UserPreferences,
     private val liveUpdateScheduler: CourseLiveUpdateScheduler,
+    private val widgetUpdateDispatcher: WidgetUpdateDispatcher,
+    private val adapterCloudRepository: AdapterCloudRepository,
+    private val schoolIndexCloudRepository: SchoolIndexCloudRepository,
     private val app: Application
 ) : ViewModel() {
 
@@ -68,6 +84,24 @@ class ImportViewModel @Inject constructor(
 
     init {
         loadSchools()
+        observeSemesters()
+    }
+
+    private fun observeSemesters() {
+        viewModelScope.launch {
+            semesterRepository.observeSemesters().collect { semesters ->
+                _uiState.update { state ->
+                    val selected = state.selectedImportSemesterId
+                        .takeIf { id -> semesters.any { it.id == id } }
+                        ?: semesters.firstOrNull()?.id.orEmpty()
+                    state.copy(
+                        semesters = semesters,
+                        selectedImportSemesterId = selected,
+                        importAsNewSemester = if (semesters.isEmpty()) true else state.importAsNewSemester
+                    )
+                }
+            }
+        }
     }
 
     private fun loadSchools() {
@@ -81,6 +115,30 @@ class ImportViewModel @Inject constructor(
             } catch (_: Exception) {
                 _uiState.update { it.copy(isSchoolListLoading = false) }
             }
+        }
+    }
+
+    private fun reloadSchoolsAfterCloudSync() {
+        SchoolAdapterLoader.clearCache()
+        loadSchools()
+    }
+
+    fun refreshCloudSchoolPresets() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isRefreshingAdapter = true, importMessage = "正在刷新云端学校预设...") }
+            val result = schoolIndexCloudRepository.refreshSchoolIndex(app.filesDir)
+            val message = when (result) {
+                is com.bu.kebiao.data.adapter.cloud.SchoolIndexRefreshResult.Success ->
+                    "此次新增${result.schoolCount}个预设学校"
+                is com.bu.kebiao.data.adapter.cloud.SchoolIndexRefreshResult.Failed ->
+                    result.reason
+            }
+            if (result is com.bu.kebiao.data.adapter.cloud.SchoolIndexRefreshResult.Success) {
+                withContext(Dispatchers.Main) {
+                    reloadSchoolsAfterCloudSync()
+                }
+            }
+            _uiState.update { it.copy(isRefreshingAdapter = false, importMessage = message) }
         }
     }
 
@@ -189,6 +247,18 @@ class ImportViewModel @Inject constructor(
         _uiState.update { it.copy(csvTextInput = text, csvTextErrors = emptyList()) }
     }
 
+    fun setImportAsNewSemester(value: Boolean) {
+        _uiState.update { it.copy(importAsNewSemester = value) }
+    }
+
+    fun selectImportSemester(semesterId: String) {
+        _uiState.update { it.copy(selectedImportSemesterId = semesterId, importAsNewSemester = false) }
+    }
+
+    fun onNewImportSemesterNameChanged(name: String) {
+        _uiState.update { it.copy(newImportSemesterName = name) }
+    }
+
     fun parseCsvTextInput() {
         parseCsvText(_uiState.value.csvTextInput, source = "csv_import")
     }
@@ -211,6 +281,66 @@ class ImportViewModel @Inject constructor(
                 _uiState.update { it.copy(csvTextInput = content) }
                 parseCsvText(content, source = "csv_import")
             }
+        }
+    }
+
+    fun parseIcsFile(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val bytes = runCatching {
+                app.contentResolver.openInputStream(uri)
+                    ?.use { it.readBytes() }
+                    ?: ByteArray(0)
+            }.getOrElse { error ->
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(importMessage = "ICS文件读取失败: ${error.message ?: "未知错误"}") }
+                }
+                return@launch
+            }
+            val content = IcsTextDecoder.decode(bytes)
+
+            val result = IcsCourseParser.parse(content, source = "ics_import")
+            withContext(Dispatchers.Main) {
+                if (result.courses.isEmpty()) {
+                    _uiState.update {
+                        it.copy(
+                            parsedCourses = emptyList(),
+                            importMessage = buildIcsParseFailureMessage(result, bytes, content)
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            eduImportMode = EduImportMode.IcsFile,
+                            parsedCourses = result.courses,
+                            currentScreen = ImportScreen.Preview,
+                            importMessage = if (result.errors.isNotEmpty()) {
+                                "已解析 ${result.courses.size} 门课，跳过 ${result.errors.size} 个日历事件"
+                            } else {
+                                null
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun buildIcsParseFailureMessage(
+        result: IcsCourseParseResult,
+        bytes: ByteArray,
+        content: String
+    ): String {
+        val detail = result.errors.firstOrNull()
+        val head = content
+            .replace("\r", "")
+            .replace("\n", " ")
+            .trim()
+            .take(36)
+        return when {
+            bytes.isEmpty() -> "ICS文件是空的，请重新选择原始 .ics 文件"
+            content.isBlank() -> "ICS文件读取后为空，请换一个文件管理器重新选择"
+            detail != null -> detail
+            else -> "未找到ICS课程事件，文件头: ${head.ifBlank { "空" }}"
         }
     }
 
@@ -262,14 +392,22 @@ class ImportViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                courses
-                    .map { it.source }
-                    .filter { it.isNotBlank() && it != "manual" }
-                    .distinct()
-                    .forEach { source -> courseRepository.deleteBySource(source) }
-                courseRepository.insertCourses(courses)
+                val state = _uiState.value
+                val targetSemesterId = if (state.importAsNewSemester || state.semesters.isEmpty()) {
+                    val name = state.newImportSemesterName.ifBlank { "新学期" }
+                    semesterRepository.createSemester(name)
+                } else {
+                    state.selectedImportSemesterId.ifBlank {
+                        state.semesters.firstOrNull()?.id ?: semesterRepository.createSemester("新学期")
+                    }
+                }
+
+                userPreferences.updateCurrentSemesterId(targetSemesterId)
+                courseRepository.deleteSemesterCourses(targetSemesterId)
+                courseRepository.insertCoursesIntoSemester(courses, targetSemesterId)
                 userPreferences.setHasImported(true)
                 liveUpdateScheduler.refreshNow()
+                widgetUpdateDispatcher.refresh()
                 val school = _uiState.value.selectedSchool
                 if (school != null) {
                     userPreferences.updateEduInfo(school.name, "")
@@ -300,7 +438,7 @@ class ImportViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val jsContent = if (adapter != null && school != null) {
-                    SchoolAdapterLoader.loadJsScript(app, school.folder, adapter.jsPath)
+                    SchoolAdapterLoader.loadJsScript(app, school.id, school.folder, adapter.jsPath, adapter.adapterId)
                 } else {
                     CourseParserJs.SCRIPT
                 }
@@ -318,5 +456,9 @@ class ImportViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun refreshCloudAdapterScript() {
+        refreshCloudSchoolPresets()
     }
 }

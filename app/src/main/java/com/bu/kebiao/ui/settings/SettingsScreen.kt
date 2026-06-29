@@ -26,8 +26,9 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bu.kebiao.domain.model.AcademicWeekResolver
 import com.bu.kebiao.domain.model.ClassTime
-import com.bu.kebiao.ui.theme.BuOrange
+import com.bu.kebiao.domain.model.Semester
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,6 +41,8 @@ fun SettingsScreen(
     var showTimeEditor by remember { mutableStateOf<ClassTime?>(null) }
     var showClassTimePage by remember { mutableStateOf(false) }
     var showWeekPicker by remember { mutableStateOf(false) }
+    var showNewSemesterDialog by remember { mutableStateOf(false) }
+    var showExportSemesterDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Column(
@@ -89,19 +92,39 @@ fun SettingsScreen(
                 }
             )
             SettingsItem(
-                icon = Icons.Default.CalendarMonth,
-                title = "\u5f53\u524d\u5468\u6b21",
-                subtitle = "\u7b2c ${state.currentWeek} / ${state.totalWeeks} \u5468",
+                icon = Icons.Default.DateRange,
+                title = "\u67e5\u770b\u5468\u6b21",
+                subtitle = "${AcademicWeekResolver.formatViewingWeekLabel(state.viewingWeek, state.currentWeek)} / ${state.totalWeeks}\u5468",
                 onClick = { showWeekPicker = true }
             )
+            state.semesters.forEach { semester ->
+                SemesterRow(
+                    semester = semester,
+                    selected = semester.id == state.currentSemesterId,
+                    onSelect = { viewModel.switchSemester(semester.id) },
+                    onDelete = { viewModel.deleteSemester(semester.id) }
+                )
             }
+            SettingsItem(
+                icon = Icons.Default.Add,
+                title = "新增学期",
+                subtitle = "创建一份独立课程数据",
+                onClick = { showNewSemesterDialog = true }
+            )
+            SettingsItem(
+                icon = Icons.Default.Share,
+                title = "导出学期 CSV",
+                subtitle = "选择一个学期导出，包含手动新增和修改后的课程",
+                onClick = { showExportSemesterDialog = true }
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Import section
         SettingsSection("\u5bfc\u5165\u7ba1\u7406") {
             SettingsItem(
-                icon = Icons.Default.CloudDownload,
+                icon = Icons.Default.Refresh,
                 title = if (state.hasImported) "\u91cd\u65b0\u5bfc\u5165\u8bfe\u8868" else "\u5bfc\u5165\u8bfe\u8868",
                 subtitle = if (state.eduSchool.isNotBlank()) "\u5df2\u5bfc\u5165: ${state.eduSchool}"
                 else "\u6559\u52a1\u5bfc\u5165 / PDF\u5bfc\u5165",
@@ -109,9 +132,9 @@ fun SettingsScreen(
             )
             if (state.hasImported) {
                 SettingsItem(
-                    icon = Icons.Default.DeleteSweep,
-                    title = "\u6e05\u9664\u6559\u52a1\u6570\u636e",
-                    subtitle = "\u5220\u9664\u6240\u6709\u6559\u52a1\u5bfc\u5165\u7684\u8bfe\u7a0b",
+                    icon = Icons.Default.Delete,
+                    title = "清除当前学期课程",
+                    subtitle = "只删除当前学期，不影响其他学期",
                     onClick = { viewModel.clearEduData() },
                     destructive = true
                 )
@@ -123,7 +146,7 @@ fun SettingsScreen(
         // Class time section - entry to sub-page
         SettingsSection("\u4e0a\u8bfe\u65f6\u95f4") {
             SettingsItem(
-                icon = Icons.Default.Schedule,
+                icon = Icons.Default.DateRange,
                 title = "\u7ba1\u7406\u4e0a\u8bfe\u65f6\u95f4",
                 subtitle = "\u8c03\u6574\u6bcf\u8282\u8bfe\u7684\u4e0a\u4e0b\u8bfe\u65f6\u95f4",
                 onClick = { showClassTimePage = true }
@@ -132,9 +155,18 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        SettingsSection("显示设置") {
+            CourseCardDensitySelector(
+                current = state.courseTextSize,
+                onSelect = viewModel::updateCourseTextSize
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         SettingsSection("后台提醒") {
             SettingsItem(
-                icon = Icons.Default.NotificationsActive,
+                icon = Icons.Default.Info,
                 title = "允许准时上课提醒",
                 subtitle = "打开通知、闹钟和后台运行权限后，清掉后台也更容易准时提醒",
                 onClick = {
@@ -166,8 +198,10 @@ fun SettingsScreen(
             SettingsItem(
                 icon = Icons.Default.Info,
                 title = "Bu\u8bfe\u8868",
-                subtitle = "v1.0.0 \u00b7 \u8f7b\u91cf\u8bfe\u7a0b\u8868",
-                onClick = {}
+                subtitle = "$ABOUT_VERSION_NAME \u00b7 \u8f7b\u91cf\u8bfe\u7a0b\u8868 \u00b7 GitHub",
+                onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ABOUT_GITHUB_URL)))
+                }
             )
         }
 
@@ -198,15 +232,183 @@ fun SettingsScreen(
 
     if (showWeekPicker) {
         WeekPickerDialog(
+            viewingWeek = state.viewingWeek,
             currentWeek = state.currentWeek,
             totalWeeks = state.totalWeeks,
             onDismiss = { showWeekPicker = false },
             onConfirm = { week ->
-                viewModel.updateCurrentWeek(week)
+                viewModel.updateViewingWeek(week)
                 showWeekPicker = false
             }
         )
     }
+
+    if (showNewSemesterDialog) {
+        NewSemesterDialog(
+            onDismiss = { showNewSemesterDialog = false },
+            onConfirm = { name ->
+                viewModel.createSemester(name)
+                showNewSemesterDialog = false
+            }
+        )
+    }
+
+    if (showExportSemesterDialog) {
+        ExportSemesterDialog(
+            semesters = state.semesters,
+            onDismiss = { showExportSemesterDialog = false },
+            onExport = { semester ->
+                viewModel.exportSemesterCsv(semester.id) { csv ->
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/csv"
+                        putExtra(Intent.EXTRA_SUBJECT, "${semester.name}.csv")
+                        putExtra(Intent.EXTRA_TEXT, csv)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "导出课程 CSV"))
+                }
+                showExportSemesterDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun SemesterRow(
+    semester: Semester,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = if (selected) Icons.Default.CheckCircle else Icons.Default.Info,
+            contentDescription = null,
+            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = semester.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+            )
+            Text(
+                text = "${semester.courseCount} 门课",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        IconButton(onClick = onDelete) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "删除",
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun NewSemesterDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var name by remember { mutableStateOf("新学期") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("新增学期", fontWeight = FontWeight.Bold) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                singleLine = true,
+                label = { Text("学期名称") }
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(name.ifBlank { "新学期" }) }) {
+                Text("创建", fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
+}
+
+@Composable
+private fun ExportSemesterDialog(
+    semesters: List<Semester>,
+    onDismiss: () -> Unit,
+    onExport: (Semester) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("选择导出的学期", fontWeight = FontWeight.Bold) },
+        text = {
+            if (semesters.isEmpty()) {
+                Text(
+                    text = "暂无可导出的学期",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    semesters.forEach { semester ->
+                        Surface(
+                            onClick = { onExport(semester) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = semester.name,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "${semester.courseCount} 门课",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
 }
 
 @Composable
@@ -271,7 +473,7 @@ private fun SettingsItem(
                 )
             }
             Icon(
-                imageVector = Icons.Default.ChevronRight,
+                imageVector = Icons.Default.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp)
@@ -281,25 +483,59 @@ private fun SettingsItem(
 }
 
 @Composable
-private fun ThemeSelector(
+private fun CourseCardDensitySelector(
     current: String,
     onSelect: (String) -> Unit
 ) {
-    val themes = listOf("system" to "\u8ddf\u968f\u7cfb\u7edf", "light" to "\u6d45\u8272", "dark" to "\u6df1\u8272")
-    Row(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        themes.forEach { (value, label) ->
-            val isSelected = current == value
-            FilterChip(
-                selected = isSelected,
-                onClick = { onSelect(value) },
-                label = { Text(label) },
-                leadingIcon = if (isSelected) {
-                    { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
-                } else null
+    val options = listOf(
+        Triple("small", "紧凑", "更多信息"),
+        Triple("medium", "标准", "均衡显示"),
+        Triple("large", "舒展", "大字精简")
+    )
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
             )
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "课程卡片密度",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "影响每周视图卡片的字号、间距和信息量",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { (value, label, hint) ->
+                val selected = current == value
+                FilterChip(
+                    selected = selected,
+                    onClick = { onSelect(value) },
+                    label = {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(label)
+                            Text(
+                                text = hint,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    leadingIcon = if (selected) {
+                        { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
+            }
         }
     }
 }
@@ -438,19 +674,23 @@ private fun WheelNumberPicker(
 
 @Composable
 private fun WeekPickerDialog(
+    viewingWeek: Int,
     currentWeek: Int,
     totalWeeks: Int,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
-    var selectedWeek by remember { mutableIntStateOf(currentWeek) }
+    var selectedWeek by remember { mutableIntStateOf(viewingWeek) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("\u8bbe\u7f6e\u5f53\u524d\u5468\u6b21", fontWeight = FontWeight.Bold) },
+        title = { Text("\u8bbe\u7f6e\u67e5\u770b\u5468\u6b21", fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Text("\u5f53\u524d\u4e3a\u7b2c $selectedWeek \u5468", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = "\u6b63\u5728\u67e5\u770b${AcademicWeekResolver.formatViewingWeekLabel(selectedWeek, currentWeek)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 Slider(
                     value = selectedWeek.toFloat(),
@@ -489,7 +729,7 @@ private fun ClassTimeManagementPage(
             // Back button + title
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ChevronLeft, contentDescription = "返回")
+                    Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "返回")
                 }
                 Text(
                     text = "上课时间",
@@ -511,7 +751,7 @@ private fun ClassTimeManagementPage(
             SettingsSection("节次时间") {
                 classTimes.forEach { classTime ->
                     SettingsItem(
-                        icon = Icons.Default.Schedule,
+                        icon = Icons.Default.DateRange,
                         title = "第 ${classTime.sectionNumber} 节",
                         subtitle = "${classTime.startTime} - ${classTime.endTime}",
                         onClick = { onEditTime(classTime) }

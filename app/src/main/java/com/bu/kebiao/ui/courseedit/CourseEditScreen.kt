@@ -6,8 +6,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -183,7 +183,7 @@ fun CourseEditScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(modifier = Modifier.padding(vertical = 14.dp), horizontalArrangement = Arrangement.Center) {
-                        Icon(Icons.Default.Save, contentDescription = null, tint = Color.White)
+                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("\u4fdd\u5b58\u8bfe\u7a0b", color = Color.White, fontWeight = FontWeight.Bold)
                     }
@@ -197,7 +197,7 @@ fun CourseEditScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Row(modifier = Modifier.padding(vertical = 14.dp), horizontalArrangement = Arrangement.Center) {
-                            Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("\u5220\u9664\u8bfe\u7a0b", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                         }

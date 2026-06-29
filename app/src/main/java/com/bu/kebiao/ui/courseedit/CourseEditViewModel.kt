@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.bu.kebiao.data.preferences.UserPreferences
 import com.bu.kebiao.domain.repository.CourseColorRepository
 import com.bu.kebiao.domain.repository.CourseRepository
+import com.bu.kebiao.widget.WidgetUpdateDispatcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -45,7 +46,8 @@ class CourseEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val courseRepository: CourseRepository,
     private val courseColorRepository: CourseColorRepository,
-    userPreferences: UserPreferences
+    userPreferences: UserPreferences,
+    private val widgetUpdateDispatcher: WidgetUpdateDispatcher
 ) : ViewModel() {
 
     private val courseId: Long = savedStateHandle["courseId"] ?: 0L
@@ -187,6 +189,7 @@ class CourseEditViewModel @Inject constructor(
                 }
                 courseColorRepository.upsertColor(name, finalColor)
                 courseRepository.updateColorByCourseName(name, finalColor)
+                widgetUpdateDispatcher.refresh()
                 saveSuccessState.value = true
             } catch (error: Exception) {
                 errorState.value = error.message ?: "\u4fdd\u5b58\u5931\u8d25"
@@ -205,6 +208,7 @@ class CourseEditViewModel @Inject constructor(
         viewModelScope.launch {
             val course = courseRepository.getCourseById(draft.id) ?: return@launch
             courseRepository.deleteCourse(course)
+            widgetUpdateDispatcher.refresh()
             saveSuccessState.value = true
         }
     }

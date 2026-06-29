@@ -12,7 +12,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class UserPreferences(private val context: Context) {
 
     private object Keys {
-        val CURRENT_WEEK = intPreferencesKey("current_week")
+        val VIEWING_WEEK = intPreferencesKey("current_week")
         val TOTAL_WEEKS = intPreferencesKey("total_weeks")
         val SEMESTER_NAME = stringPreferencesKey("semester_name")
         val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -21,10 +21,11 @@ class UserPreferences(private val context: Context) {
         val HAS_IMPORTED = booleanPreferencesKey("has_imported")
         val SEMESTER_START_DATE = longPreferencesKey("semester_start_date")
         val COURSE_TEXT_SIZE = stringPreferencesKey("course_text_size")
+        val CURRENT_SEMESTER_ID = stringPreferencesKey("current_semester_id")
     }
 
     data class Preferences(
-        val currentWeek: Int = 1,
+        val viewingWeek: Int = 1,
         val totalWeeks: Int = 20,
         val semesterName: String = "",
         val themeMode: String = "system",
@@ -32,12 +33,16 @@ class UserPreferences(private val context: Context) {
         val eduAccount: String = "",
         val hasImported: Boolean = false,
         val semesterStartDate: Long = 0L,
-        val courseTextSize: String = "medium"
-    )
+        val courseTextSize: String = "medium",
+        val currentSemesterId: String = "default"
+    ) {
+        val currentWeek: Int
+            get() = viewingWeek
+    }
 
     val preferencesFlow: Flow<Preferences> = context.dataStore.data.map { prefs ->
         Preferences(
-            currentWeek = prefs[Keys.CURRENT_WEEK] ?: 1,
+            viewingWeek = prefs[Keys.VIEWING_WEEK] ?: 1,
             totalWeeks = prefs[Keys.TOTAL_WEEKS] ?: 20,
             semesterName = prefs[Keys.SEMESTER_NAME] ?: "",
             themeMode = prefs[Keys.THEME_MODE] ?: "system",
@@ -45,13 +50,16 @@ class UserPreferences(private val context: Context) {
             eduAccount = prefs[Keys.EDU_ACCOUNT] ?: "",
             hasImported = prefs[Keys.HAS_IMPORTED] ?: false,
             semesterStartDate = prefs[Keys.SEMESTER_START_DATE] ?: 0L,
-            courseTextSize = prefs[Keys.COURSE_TEXT_SIZE] ?: "medium"
+            courseTextSize = prefs[Keys.COURSE_TEXT_SIZE] ?: "medium",
+            currentSemesterId = prefs[Keys.CURRENT_SEMESTER_ID] ?: "default"
         )
     }
 
-    suspend fun updateCurrentWeek(week: Int) {
-        context.dataStore.edit { it[Keys.CURRENT_WEEK] = week }
+    suspend fun updateViewingWeek(week: Int) {
+        context.dataStore.edit { it[Keys.VIEWING_WEEK] = week }
     }
+
+    suspend fun updateCurrentWeek(week: Int) = updateViewingWeek(week)
 
     suspend fun updateTotalWeeks(weeks: Int) {
         context.dataStore.edit { it[Keys.TOTAL_WEEKS] = weeks }
@@ -82,5 +90,9 @@ class UserPreferences(private val context: Context) {
 
     suspend fun updateCourseTextSize(size: String) {
         context.dataStore.edit { it[Keys.COURSE_TEXT_SIZE] = size }
+    }
+
+    suspend fun updateCurrentSemesterId(semesterId: String) {
+        context.dataStore.edit { it[Keys.CURRENT_SEMESTER_ID] = semesterId }
     }
 }

@@ -18,10 +18,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.EventAvailable
-import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bu.kebiao.domain.model.AcademicWeekResolver
 import com.bu.kebiao.domain.model.ClassTime
 import com.bu.kebiao.domain.model.Course
 import com.bu.kebiao.ui.courseedit.CourseConflictSheet
@@ -65,7 +66,6 @@ import com.bu.kebiao.ui.theme.BuEasing
 import com.bu.kebiao.ui.theme.CourseColors
 import com.bu.kebiao.ui.theme.CourseColorsSoft
 import java.time.LocalDate
-import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +75,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val cardLayout = remember(state.courseTextSize) { courseCardTextLayout(state.courseTextSize) }
     var quickDraft by remember { mutableStateOf<CourseEditDraft?>(null) }
     var quickEditTarget by remember { mutableStateOf<Course?>(null) }
     var conflictCourses by remember { mutableStateOf<List<Course>>(emptyList()) }
@@ -104,6 +105,7 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
             TopBar(
+                viewingWeek = state.viewingWeek,
                 currentWeek = state.currentWeek,
                 totalWeeks = state.totalWeeks,
                 onPrevWeek = viewModel::prevWeek,
@@ -145,15 +147,16 @@ fun HomeScreen(
                     TodayView(
                         courses = state.todayCourses,
                         classTimes = state.classTimes,
-                        fontScale = courseTextSizeScale(state.courseTextSize),
+                        fontScale = cardLayout.fontScale,
                         onCoursesClick = ::openCourseEntry
                     )
                 } else {
                     WeekView(
                         courses = state.courses,
                         classTimes = state.classTimes,
-                        currentWeek = state.currentWeek,
-                        fontScale = courseTextSizeScale(state.courseTextSize),
+                        viewingWeek = state.viewingWeek,
+                        semesterStartDate = state.semesterStartDate,
+                        cardLayout = cardLayout,
                         onCoursesClick = ::openCourseEntry
                     )
                 }
@@ -243,6 +246,7 @@ fun HomeScreen(
 
     if (showWeekPicker) {
         WeekPickerDialog(
+            viewingWeek = state.viewingWeek,
             currentWeek = state.currentWeek,
             totalWeeks = state.totalWeeks,
             onDismiss = { showWeekPicker = false },
@@ -256,6 +260,7 @@ fun HomeScreen(
 
 @Composable
 private fun TopBar(
+    viewingWeek: Int,
     currentWeek: Int,
     totalWeeks: Int,
     onPrevWeek: () -> Unit,
@@ -264,6 +269,7 @@ private fun TopBar(
 ) {
     val today = LocalDate.now()
     val dateText = "${today.year}\u5e74${today.monthValue}\u6708${today.dayOfMonth}\u65e5 \u00b7 ${getDayName(today.dayOfWeek.value)}"
+    val weekLabel = AcademicWeekResolver.formatViewingWeekLabel(viewingWeek, currentWeek)
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -285,15 +291,15 @@ private fun TopBar(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalAlignment = Alignment.End
             ) {
-                Text("\u7b2c$currentWeek\u5468", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(weekLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    IconButton(onClick = onPrevWeek, enabled = currentWeek > 1, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.ChevronLeft, contentDescription = "\u4e0a\u4e00\u5468", modifier = Modifier.size(16.dp))
+                    IconButton(onClick = onPrevWeek, enabled = viewingWeek > 1, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "\u4e0a\u4e00\u5468", modifier = Modifier.size(16.dp))
                     }
-                    Text("$currentWeek/$totalWeeks", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    IconButton(onClick = onNextWeek, enabled = currentWeek < totalWeeks, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.ChevronRight, contentDescription = "\u4e0b\u4e00\u5468", modifier = Modifier.size(16.dp))
+                    Text("$viewingWeek/$totalWeeks", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    IconButton(onClick = onNextWeek, enabled = viewingWeek < totalWeeks, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "\u4e0b\u4e00\u5468", modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -376,7 +382,7 @@ private fun FirstImportCard(onClick: () -> Unit) {
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
-            Icon(Icons.Default.Upload, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(36.dp))
+            Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(36.dp))
         }
     }
 }
@@ -391,7 +397,7 @@ private fun TodayView(
     if (courses.isEmpty()) {
         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.EventAvailable, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.outline)
+                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.outline)
                 Spacer(modifier = Modifier.height(12.dp))
                 Text("\u4eca\u5929\u6ca1\u6709\u8bfe\u7a0b", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("\u4eab\u53d7\u4f60\u7684\u4e00\u5929\u5427 \uD83C\uDF89", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
@@ -439,13 +445,14 @@ private fun TodayView(
 private fun WeekView(
     courses: List<Course>,
     classTimes: List<ClassTime>,
-    currentWeek: Int,
-    fontScale: Float = 1f,
+    viewingWeek: Int,
+    semesterStartDate: Long,
+    cardLayout: CourseCardTextLayout = courseCardTextLayout("medium"),
     onCoursesClick: (List<Course>) -> Unit
 ) {
-    val filteredCourses = remember(courses, currentWeek) {
+    val filteredCourses = remember(courses, viewingWeek) {
         courses
-            .filter { it.isActiveInWeek(currentWeek) }
+            .filter { it.isActiveInWeek(viewingWeek) }
             .sortedWith(compareBy<Course> { it.dayOfWeek }.thenBy { it.startSection }.thenBy { it.endSection }.thenBy { it.name })
     }
     val placements = remember(filteredCourses) { calculateWeekPlacements(filteredCourses) }
@@ -460,7 +467,12 @@ private fun WeekView(
     val contentHeight = gridHeight + headerHeight + 8.dp
     val viewportHeight = minOf(contentHeight, 620.dp)
     val gridViewportHeight = viewportHeight - headerHeight
-    val dayLabels = listOf("\u4e00", "\u4e8c", "\u4e09", "\u56db", "\u4e94", "\u516d", "\u65e5")
+    val headerDates = remember(viewingWeek, semesterStartDate) {
+        buildWeekHeaderDates(
+            currentWeek = viewingWeek,
+            semesterStartDateMillis = semesterStartDate
+        )
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -473,22 +485,46 @@ private fun WeekView(
         val dayWidth = (maxWidth - leftWidth) / 7f
 
         Row(modifier = Modifier.fillMaxWidth().height(headerHeight), verticalAlignment = Alignment.CenterVertically) {
-            Spacer(modifier = Modifier.width(leftWidth))
-            dayLabels.forEachIndexed { index, label ->
-                val isToday = index + 1 == LocalDate.now().dayOfWeek.value
+            Box(
+                modifier = Modifier.width(leftWidth).fillMaxHeight(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = headerDates.monthLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
+                )
+            }
+            headerDates.days.forEach { day ->
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isToday) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (day.isToday) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
                     modifier = Modifier.width(dayWidth)
                 ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = if (isToday) FontWeight.Bold else FontWeight.SemiBold,
-                        color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(vertical = 6.dp)
-                    )
+                    Column(
+                        modifier = Modifier.padding(vertical = 5.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = day.date.dayOfMonth.toString(),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (day.isToday) FontWeight.ExtraBold else FontWeight.Bold,
+                            color = if (day.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = day.weekdayLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (day.isToday) FontWeight.Bold else FontWeight.SemiBold,
+                            color = if (day.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }
@@ -568,7 +604,7 @@ private fun WeekView(
                     val blockHeight = sectionHeight * (placement.group.endSection - placement.group.startSection + 1) - 4.dp
 
                     WeekCourseBlock(
-                        fontScale = fontScale,
+                        layout = cardLayout,
                         courses = placement.group.courses,
                         isOverlapping = placement.columnCount > 1,
                         onClick = { onCoursesClick(placement.detailCourses) },
@@ -578,7 +614,7 @@ private fun WeekView(
 
                 if (filteredCourses.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.TopCenter) {
-                        Text("\u7b2c$currentWeek\u5468\u6ca1\u6709\u8bfe\u7a0b", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("\u7b2c$viewingWeek\u5468\u6ca1\u6709\u8bfe\u7a0b", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -675,7 +711,7 @@ private fun TodaySectionCard(
 
 @Composable
 private fun WeekCourseBlock(
-    fontScale: Float = 1f,
+    layout: CourseCardTextLayout = courseCardTextLayout("medium"),
     courses: List<Course>,
     modifier: Modifier = Modifier,
     isOverlapping: Boolean = false,
@@ -691,7 +727,7 @@ private fun WeekCourseBlock(
             .background(bgColor)
             .border(1.dp, color.copy(alpha = 0.18f), RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp)
+            .padding(horizontal = layout.horizontalPaddingDp.dp, vertical = layout.verticalPaddingDp.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -701,24 +737,27 @@ private fun WeekCourseBlock(
                     ConflictBadge(count = courses.size.takeIf { it > 1 })
                 }
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(layout.accentSpacingDp.dp))
             Text(
                 first.name,
                 style = MaterialTheme.typography.titleSmall,
-                fontSize = (13 * fontScale).sp,
+                fontSize = (13 * layout.fontScale).sp,
                 fontWeight = FontWeight.Bold,
-                maxLines = if (courses.size > 1) 5 else 6,
+                maxLines = if (courses.size > 1) (layout.titleMaxLines - 1).coerceAtLeast(2) else layout.titleMaxLines,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = buildWeekCourseSubtitle(first).ifBlank { "\u70b9\u51fb\u67e5\u770b\u8be6\u60c5" },
-                style = MaterialTheme.typography.bodySmall,
-                fontSize = (11 * fontScale).sp,
-                color = if (courses.size > 1) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = if (courses.size > 1) 6 else 5,
-                overflow = TextOverflow.Ellipsis
-            )
+            val subtitle = buildWeekCourseSubtitle(first, layout)
+            if (subtitle.isNotBlank() || layout.showDetailFallback) {
+                Spacer(modifier = Modifier.height(layout.detailSpacingDp.dp))
+                Text(
+                    text = subtitle.ifBlank { "\u70b9\u51fb\u67e5\u770b\u8be6\u60c5" },
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = (11 * layout.fontScale).sp,
+                    color = if (courses.size > 1) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = if (courses.size > 1) (layout.detailMaxLines + 1).coerceAtLeast(2) else layout.detailMaxLines,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -741,8 +780,15 @@ private fun buildCourseSubtitle(course: Course): String {
     return listOf(course.location, course.teacher).filter { it.isNotBlank() }.joinToString(" \u00b7 ")
 }
 
-private fun buildWeekCourseSubtitle(course: Course): String {
-    return listOf(course.location, course.teacher).filter { it.isNotBlank() }.joinToString("\n")
+private fun buildWeekCourseSubtitle(course: Course, layout: CourseCardTextLayout): String {
+    val details = mutableListOf<String>()
+    if (course.location.isNotBlank()) details += course.location
+    if (course.teacher.isNotBlank()) details += course.teacher
+    if (layout.includeWeekRange) {
+        details += formatSectionRange(course.startSection, course.endSection)
+        details += formatCourseWeeks(course)
+    }
+    return details.filter { it.isNotBlank() }.joinToString("\n")
 }
 
 
@@ -753,21 +799,25 @@ private fun formatSectionRange(startSection: Int, endSection: Int, prefix: Boole
 
 @Composable
 private fun WeekPickerDialog(
+    viewingWeek: Int,
     currentWeek: Int,
     totalWeeks: Int,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
-    var selectedWeek by remember { mutableIntStateOf(currentWeek) }
+    var selectedWeek by remember { mutableIntStateOf(viewingWeek) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = { onConfirm(selectedWeek) }) { Text("\u786e\u5b9a") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("\u53d6\u6d88") } },
-        title = { Text("\u5207\u6362\u5468\u6570", fontWeight = FontWeight.Bold) },
+        title = { Text("\u5207\u6362\u67e5\u770b\u5468\u6570", fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Text("\u5f53\u524d\u9009\u62e9\u7b2c$selectedWeek\u5468", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = "\u6b63\u5728\u67e5\u770b${AcademicWeekResolver.formatViewingWeekLabel(selectedWeek, currentWeek)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 Slider(
                     value = selectedWeek.toFloat(),
@@ -792,9 +842,7 @@ private fun getDayName(dayOfWeek: Int): String = when (dayOfWeek) {
     else -> ""
 }
 
-
-private fun courseTextSizeScale(size: String): Float = when (size) {
-    "small" -> 0.85f
-    "large" -> 1.15f
-    else -> 1f
+private fun formatCourseWeeks(course: Course): String {
+    if (course.weeks.isNotEmpty()) return "\u7b2c${course.weeks.joinToString(",")}\u5468"
+    return "\u7b2c${course.startWeek}-${course.endWeek}\u5468"
 }

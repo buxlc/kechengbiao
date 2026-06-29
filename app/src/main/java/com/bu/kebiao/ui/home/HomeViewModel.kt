@@ -3,12 +3,14 @@ package com.bu.kebiao.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bu.kebiao.data.preferences.UserPreferences
+import com.bu.kebiao.domain.model.AcademicWeekResolver
 import com.bu.kebiao.domain.model.ClassTime
 import com.bu.kebiao.domain.model.Course
 import com.bu.kebiao.domain.repository.ClassTimeRepository
 import com.bu.kebiao.domain.repository.CourseColorRepository
 import com.bu.kebiao.domain.repository.CourseRepository
 import com.bu.kebiao.liveupdate.CourseLiveUpdateScheduler
+import com.bu.kebiao.widget.WidgetUpdateDispatcher
 import com.bu.kebiao.ui.courseedit.CourseEditDraft
 import com.bu.kebiao.ui.courseedit.CourseWeekParser
 import com.bu.kebiao.ui.courseedit.toCourse
@@ -28,6 +30,7 @@ data class HomeUiState(
     val classTimes: List<ClassTime> = emptyList(),
     val colorMap: Map<String, Int> = emptyMap(),
     val currentWeek: Int = 1,
+    val viewingWeek: Int = 1,
     val totalWeeks: Int = 20,
     val semesterStartDate: Long = 0L,
     val hasImported: Boolean = false,
@@ -41,6 +44,7 @@ private data class HomeCoreState(
     val classTimes: List<ClassTime>,
     val colorMap: Map<String, Int>,
     val currentWeek: Int,
+    val viewingWeek: Int,
     val totalWeeks: Int,
     val semesterStartDate: Long,
     val hasImported: Boolean,
@@ -53,7 +57,8 @@ class HomeViewModel @Inject constructor(
     private val classTimeRepository: ClassTimeRepository,
     private val courseColorRepository: CourseColorRepository,
     private val userPreferences: UserPreferences,
-    private val liveUpdateScheduler: CourseLiveUpdateScheduler
+    private val liveUpdateScheduler: CourseLiveUpdateScheduler,
+    private val widgetUpdateDispatcher: WidgetUpdateDispatcher
 ) : ViewModel() {
 
     private val isTodayViewFlow = MutableStateFlow(true)
@@ -70,11 +75,18 @@ class HomeViewModel @Inject constructor(
         },
         userPreferences.preferencesFlow
     ) { core, prefs ->
+        val viewingWeek = AcademicWeekResolver.normalizeViewingWeek(prefs.viewingWeek, prefs.totalWeeks)
+        val currentWeek = AcademicWeekResolver.resolveCurrentWeek(
+            viewingWeek = viewingWeek,
+            totalWeeks = prefs.totalWeeks,
+            semesterStartDateMillis = prefs.semesterStartDate
+        )
         HomeCoreState(
             courses = core.first.map { resolveCourseColor(it, core.third) },
             classTimes = core.second.sortedBy { it.sectionNumber },
             colorMap = core.third,
-            currentWeek = prefs.currentWeek,
+            currentWeek = currentWeek,
+            viewingWeek = viewingWeek,
             totalWeeks = prefs.totalWeeks,
             semesterStartDate = prefs.semesterStartDate,
             hasImported = prefs.hasImported,
@@ -88,7 +100,7 @@ class HomeViewModel @Inject constructor(
     ) { coreAndView, selectedDay ->
         val (core, isTodayView) = coreAndView
         val todayCourses = core.courses
-            .filter { it.dayOfWeek == selectedDay && it.isActiveInWeek(core.currentWeek) }
+            .filter { it.dayOfWeek == selectedDay && it.isActiveInWeek(core.viewingWeek) }
             .sortedWith(compareBy<Course> { it.startSection }.thenBy { it.endSection }.thenBy { it.name })
 
         HomeUiState(
@@ -97,6 +109,7 @@ class HomeViewModel @Inject constructor(
             classTimes = core.classTimes,
             colorMap = core.colorMap,
             currentWeek = core.currentWeek,
+            viewingWeek = core.viewingWeek,
             totalWeeks = core.totalWeeks,
             semesterStartDate = core.semesterStartDate,
             hasImported = core.hasImported,
@@ -119,20 +132,20 @@ class HomeViewModel @Inject constructor(
     }
 
     fun prevWeek() {
-        val currentWeek = uiState.value.currentWeek
-        if (currentWeek > 1) {
+        val viewingWeek = uiState.value.viewingWeek
+        if (viewingWeek > 1) {
             viewModelScope.launch {
-                userPreferences.updateCurrentWeek(currentWeek - 1)
+                userPreferences.updateViewingWeek(viewingWeek - 1)
             }
         }
     }
 
     fun nextWeek() {
-        val currentWeek = uiState.value.currentWeek
+        val viewingWeek = uiState.value.viewingWeek
         val totalWeeks = uiState.value.totalWeeks
-        if (currentWeek < totalWeeks) {
+        if (viewingWeek < totalWeeks) {
             viewModelScope.launch {
-                userPreferences.updateCurrentWeek(currentWeek + 1)
+                userPreferences.updateViewingWeek(viewingWeek + 1)
             }
         }
     }
@@ -140,7 +153,7 @@ class HomeViewModel @Inject constructor(
     fun setCurrentWeek(week: Int) {
         val safeWeek = week.coerceIn(1, uiState.value.totalWeeks.coerceAtLeast(1))
         viewModelScope.launch {
-            userPreferences.updateCurrentWeek(safeWeek)
+            userPreferences.updateViewingWeek(safeWeek)
         }
     }
 
@@ -168,6 +181,7 @@ class HomeViewModel @Inject constructor(
             courseColorRepository.upsertColor(name, finalColor)
             courseRepository.updateColorByCourseName(name, finalColor)
             liveUpdateScheduler.refreshNow()
+            widgetUpdateDispatcher.refresh()
         }
     }
 
@@ -175,6 +189,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             courseRepository.deleteCourse(course)
             liveUpdateScheduler.refreshNow()
+            widgetUpdateDispatcher.refresh()
         }
     }
 }

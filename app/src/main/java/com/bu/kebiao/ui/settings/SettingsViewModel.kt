@@ -3,10 +3,15 @@ package com.bu.kebiao.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bu.kebiao.data.preferences.UserPreferences
+import com.bu.kebiao.domain.model.AcademicWeekResolver
 import com.bu.kebiao.domain.model.ClassTime
+import com.bu.kebiao.domain.model.Semester
 import com.bu.kebiao.domain.repository.ClassTimeRepository
 import com.bu.kebiao.domain.repository.CourseRepository
+import com.bu.kebiao.domain.repository.SemesterRepository
 import com.bu.kebiao.liveupdate.CourseLiveUpdateScheduler
+import com.bu.kebiao.ui.courseimport.SemesterCsvExporter
+import com.bu.kebiao.widget.WidgetUpdateDispatcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -15,6 +20,7 @@ import javax.inject.Inject
 data class SettingsUiState(
     val classTimes: List<ClassTime> = emptyList(),
     val currentWeek: Int = 1,
+    val viewingWeek: Int = 1,
     val totalWeeks: Int = 20,
     val semesterName: String = "",
     val semesterStartDate: Long = 0L,
@@ -24,25 +30,37 @@ data class SettingsUiState(
     val hasImported: Boolean = false,
     val courseCount: Int = 0,
     val editingTime: ClassTime? = null,
-    val courseTextSize: String = "medium"
+    val courseTextSize: String = "medium",
+    val currentSemesterId: String = "default",
+    val semesters: List<Semester> = emptyList()
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val classTimeRepository: ClassTimeRepository,
     private val courseRepository: CourseRepository,
+    private val semesterRepository: SemesterRepository,
     private val userPreferences: UserPreferences,
-    private val liveUpdateScheduler: CourseLiveUpdateScheduler
+    private val liveUpdateScheduler: CourseLiveUpdateScheduler,
+    private val widgetUpdateDispatcher: WidgetUpdateDispatcher
 ) : ViewModel() {
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        classTimeRepository.getAllClassTimes(),
-        userPreferences.preferencesFlow,
-        courseRepository.getCourseCount()
-    ) { times, prefs, count ->
+        combine(classTimeRepository.getAllClassTimes(), userPreferences.preferencesFlow) { times, prefs -> times to prefs },
+        combine(courseRepository.getCourseCount(), semesterRepository.observeSemesters()) { count, semesters -> count to semesters }
+    ) { timeAndPrefs, countAndSemesters ->
+        val (times, prefs) = timeAndPrefs
+        val (count, semesters) = countAndSemesters
+        val viewingWeek = AcademicWeekResolver.normalizeViewingWeek(prefs.viewingWeek, prefs.totalWeeks)
+        val currentWeek = AcademicWeekResolver.resolveCurrentWeek(
+            viewingWeek = viewingWeek,
+            totalWeeks = prefs.totalWeeks,
+            semesterStartDateMillis = prefs.semesterStartDate
+        )
         SettingsUiState(
             classTimes = times,
-            currentWeek = prefs.currentWeek,
+            currentWeek = currentWeek,
+            viewingWeek = viewingWeek,
             totalWeeks = prefs.totalWeeks,
             semesterName = prefs.semesterName,
             semesterStartDate = prefs.semesterStartDate,
@@ -51,7 +69,9 @@ class SettingsViewModel @Inject constructor(
             eduAccount = prefs.eduAccount,
             hasImported = prefs.hasImported,
             courseCount = count,
-            courseTextSize = prefs.courseTextSize
+            courseTextSize = prefs.courseTextSize,
+            currentSemesterId = prefs.currentSemesterId,
+            semesters = semesters
         )
     }.stateIn(
         scope = viewModelScope,
@@ -59,10 +79,9 @@ class SettingsViewModel @Inject constructor(
         initialValue = SettingsUiState()
     )
 
-    fun updateCurrentWeek(week: Int) {
+    fun updateViewingWeek(week: Int) {
         viewModelScope.launch {
-            userPreferences.updateCurrentWeek(week)
-            liveUpdateScheduler.refreshNow()
+            userPreferences.updateViewingWeek(week)
         }
     }
 
@@ -73,14 +92,74 @@ class SettingsViewModel @Inject constructor(
                 startDate = startDateMillis,
                 totalWeeks = totalWeeks
             )
-            // Auto-calculate current week based on start date
-            val now = System.currentTimeMillis()
-            val diffDays = ((now - startDateMillis) / (1000L * 60 * 60 * 24)).toInt()
-            val calculatedWeek = (diffDays / 7) + 1
-            if (calculatedWeek in 1..totalWeeks) {
-                userPreferences.updateCurrentWeek(calculatedWeek)
+            val currentWeek = AcademicWeekResolver.resolveCurrentWeek(
+                viewingWeek = uiState.value.viewingWeek,
+                totalWeeks = totalWeeks,
+                semesterStartDateMillis = startDateMillis
+            )
+            userPreferences.updateViewingWeek(currentWeek)
+            liveUpdateScheduler.refreshNow()
+            widgetUpdateDispatcher.refresh()
+        }
+    }
+
+    fun createSemester(name: String = "新学期") {
+        viewModelScope.launch {
+            val semesterId = semesterRepository.createSemester(name)
+            userPreferences.updateCurrentSemesterId(semesterId)
+            userPreferences.setHasImported(false)
+            liveUpdateScheduler.refreshNow()
+            widgetUpdateDispatcher.refresh()
+        }
+    }
+
+    fun switchSemester(semesterId: String) {
+        viewModelScope.launch {
+            userPreferences.updateCurrentSemesterId(semesterId)
+            val hasCourses = uiState.value.semesters.firstOrNull { it.id == semesterId }?.courseCount.orZero() > 0
+            userPreferences.setHasImported(hasCourses)
+            liveUpdateScheduler.refreshNow()
+            widgetUpdateDispatcher.refresh()
+        }
+    }
+
+    fun renameSemester(semesterId: String, name: String) {
+        viewModelScope.launch {
+            semesterRepository.renameSemester(semesterId, name)
+        }
+    }
+
+    fun deleteSemester(semesterId: String) {
+        viewModelScope.launch {
+            val currentSemesterId = uiState.value.currentSemesterId
+            courseRepository.deleteSemesterCourses(semesterId)
+            semesterRepository.deleteSemester(semesterId)
+            if (semesterId == currentSemesterId) {
+                val fallback = uiState.value.semesters.firstOrNull { it.id != semesterId }?.id.orEmpty()
+                userPreferences.updateCurrentSemesterId(fallback)
+                val fallbackCount = uiState.value.semesters.firstOrNull { it.id == fallback }?.courseCount.orZero()
+                userPreferences.setHasImported(fallbackCount > 0)
             }
             liveUpdateScheduler.refreshNow()
+            widgetUpdateDispatcher.refresh()
+        }
+    }
+
+    fun exportCurrentSemesterCsv(onReady: (String) -> Unit) {
+        viewModelScope.launch {
+            val state = uiState.value
+            val semester = state.semesters.firstOrNull { it.id == state.currentSemesterId }
+                ?: Semester(id = "default", name = state.semesterName.ifBlank { "默认学期" })
+            val courses = courseRepository.getAllCoursesBySemester(semester.id).first()
+            onReady(SemesterCsvExporter.export(semester, courses))
+        }
+    }
+
+    fun exportSemesterCsv(semesterId: String, onReady: (String) -> Unit) {
+        viewModelScope.launch {
+            val semester = uiState.value.semesters.firstOrNull { it.id == semesterId } ?: return@launch
+            val courses = courseRepository.getAllCoursesBySemester(semester.id).first()
+            onReady(SemesterCsvExporter.export(semester, courses))
         }
     }
 
@@ -111,11 +190,12 @@ class SettingsViewModel @Inject constructor(
     fun clearEduData() {
         viewModelScope.launch {
             userPreferences.updateEduInfo("", "")
-            courseRepository.deleteBySource("edu_web")
-            courseRepository.deleteBySource("excel")
-            courseRepository.deleteBySource("pdf")
+            courseRepository.deleteCurrentSemesterCourses()
             userPreferences.setHasImported(false)
             liveUpdateScheduler.refreshNow()
+            widgetUpdateDispatcher.refresh()
         }
     }
+
+    private fun Int?.orZero(): Int = this ?: 0
 }

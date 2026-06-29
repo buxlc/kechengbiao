@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.bu.kebiao.data.preferences.UserPreferences
+import com.bu.kebiao.domain.model.AcademicWeekResolver
 import com.bu.kebiao.domain.repository.ClassTimeRepository
 import com.bu.kebiao.domain.repository.CourseRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -46,14 +47,19 @@ class CourseLiveUpdateScheduler @Inject constructor(
 
     suspend fun refresh() {
         val prefs = userPreferences.preferencesFlow.first()
-        val courses = courseRepository.getCoursesByWeek(prefs.currentWeek).first()
+        val currentWeek = AcademicWeekResolver.resolveCurrentWeek(
+            viewingWeek = prefs.viewingWeek,
+            totalWeeks = prefs.totalWeeks,
+            semesterStartDateMillis = prefs.semesterStartDate
+        )
+        val courses = courseRepository.getCoursesByWeek(currentWeek).first()
         val classTimes = classTimeRepository.getAllClassTimes().first()
         val now = LocalDateTime.now()
 
         val state = CourseLiveUpdateCalculator.calculate(
             courses = courses,
             classTimes = classTimes,
-            currentWeek = prefs.currentWeek,
+            currentWeek = currentWeek,
             now = now
         )
 
@@ -62,7 +68,7 @@ class CourseLiveUpdateScheduler @Inject constructor(
             CourseLiveUpdateCalculator.nextCheckTime(
                 courses = courses,
                 classTimes = classTimes,
-                currentWeek = prefs.currentWeek,
+                currentWeek = currentWeek,
                 now = now
             )
         )

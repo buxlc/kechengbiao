@@ -1,6 +1,9 @@
 ﻿package com.bu.kebiao.data.adapter
 
 import android.content.Context
+import com.bu.kebiao.data.adapter.cloud.AdapterCloudScriptStore
+import com.bu.kebiao.data.adapter.cloud.SchoolIndexParser
+import com.bu.kebiao.data.adapter.cloud.SchoolIndexStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -14,48 +17,18 @@ object SchoolAdapterLoader {
         cachedSchools?.let { return it }
         return withContext(Dispatchers.IO) {
             val json = context.assets.open("school_index.json").bufferedReader().use { it.readText() }
-            val root = JSONObject(json)
-            val schoolsArray = root.getJSONArray("schools")
-            val schools = mutableListOf<SchoolInfo>()
-
-            for (i in 0 until schoolsArray.length()) {
-                val s = schoolsArray.getJSONObject(i)
-                val adaptersArray = s.getJSONArray("adapters")
-                val adapters = mutableListOf<AdapterInfo>()
-
-                for (j in 0 until adaptersArray.length()) {
-                    val a = adaptersArray.getJSONObject(j)
-                    adapters.add(
-                        AdapterInfo(
-                            adapterId = a.optString("adapter_id", ""),
-                            adapterName = a.optString("adapter_name", ""),
-                            category = a.optString("category", ""),
-                            jsPath = a.optString("js_path", ""),
-                            importUrl = a.optString("import_url", ""),
-                            description = a.optString("description", ""),
-                            maintainer = a.optString("maintainer", "")
-                        )
-                    )
-                }
-
-                schools.add(
-                    SchoolInfo(
-                        id = s.getString("id"),
-                        name = s.getString("name"),
-                        initial = s.optString("initial", ""),
-                        folder = s.getString("folder"),
-                        adapters = adapters
-                    )
-                )
-            }
-
-            val mergedSchools = mergeBuiltInSchools(schools)
+            val schools = SchoolIndexParser.parse(json)
+            val remoteSchools = SchoolIndexStore.read(context.filesDir)
+                ?.let(SchoolIndexParser::parse)
+                .orEmpty()
+            val mergedSchools = mergeBuiltInSchools((schools + remoteSchools).distinctBy { it.id })
             cachedSchools = mergedSchools
             mergedSchools
         }
     }
 
-    fun loadJsScript(context: Context, folder: String, jsPath: String): String {
+    fun loadJsScript(context: Context, schoolId: String, folder: String, jsPath: String, adapterId: String): String {
+        AdapterCloudScriptStore.read(context.filesDir, schoolId, adapterId)?.let { return it }
         val assetPath = "adapters/$folder/$jsPath"
         return context.assets.open(assetPath).bufferedReader().use { it.readText() }
     }

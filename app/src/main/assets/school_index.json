@@ -980,6 +980,23 @@
       ]
     },
     {
+      "id": "GXMU",
+      "name": "广西医科大学",
+      "initial": "G",
+      "folder": "GXMU",
+      "adapters": [
+        {
+          "adapter_id": "GXMU_01",
+          "adapter_name": "广西医科大学本科教务",
+          "category": "BACHELOR_AND_ASSOCIATE",
+          "js_path": "gxmu_01.js",
+          "import_url": "https://jwxt.gxmu.edu.cn/",
+          "description": "适配广西医科大学本科教务管理系统（乘方教务）。由于教务页面在软件内可能无法正常显示，本适配通过接口直接获取数据。登录后直接点击执行导入即可，支持自动获取开学日期和节次时间",
+          "maintainer": "Qoder"
+        }
+      ]
+    },
+    {
       "id": "YANGTZEU",
       "name": "长江大学",
       "initial": "C",
@@ -1963,6 +1980,40 @@
           "import_url": "http://111.43.36.164/login",
           "description": "齐齐哈尔大学URP教务，非本校开发者适配如果有误建议提交issues",
           "maintainer": "星河欲转"
+        }
+      ]
+    },
+    {
+      "id": "LNTU",
+      "name": "辽宁工程技术大学",
+      "initial": "L",
+      "folder": "LNTU",
+      "adapters": [
+        {
+          "adapter_id": "LNTU_01",
+          "adapter_name": "辽工大本专科教务(WebVPN+EAMS)",
+          "category": "BACHELOR_AND_ASSOCIATE",
+          "js_path": "lntu_eams_webvpn.js",
+          "import_url": "https://webvpn.lntu.edu.cn/http-8080/77726476706e69737468656265737421fae05988693c66446b468ca88d1b203b/eams/homeExt.action;jsessionid=21FC342C07221C735FCEC1AF67C53994;jsessionid=E836FFAC3F1847F90DECDE68339DA26F;jsessionid=8A8F0CEABA0508242A222C50EAD694C7;jsessionid=CD7356CF314D12987B4F0BE78058F3AB#",
+          "description": "适配辽宁工程技术大学 WebVPN + EAMS 教务系统。请先通过 WebVPN 登录教务系统并进入课表页面，然后点击执行导入即可。\n\n学年学期自动检测，课表数据通过接口获取。",
+          "maintainer": "Qoder"
+        }
+      ]
+    },
+    {
+      "id": "GXU",
+      "name": "广西大学",
+      "initial": "G",
+      "folder": "GXU",
+      "adapters": [
+        {
+          "adapter_id": "GXU_01",
+          "adapter_name": "广西大学正方教务",
+          "category": "BACHELOR_AND_ASSOCIATE",
+          "js_path": "gxu_01.js",
+          "import_url": "https://jwxt2018.gxu.edu.cn/jwglxt/xtgn/login_slogin.html",
+          "description": "适配广西大学正方教务系统。请先登录教务系统，进入任意页面后点击执行导入即可。\n\n学年学期自动检测，课表数据通过接口获取。",
+          "maintainer": "Qoder"
         }
       ]
     }

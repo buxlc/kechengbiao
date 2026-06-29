@@ -1,4 +1,20 @@
 (function () {
+  // ---------- 预设作息时间（12 节课） ----------
+  var LntuTimeSlots = [
+    { number: 1,  startTime: "08:00", endTime: "08:45" },
+    { number: 2,  startTime: "08:55", endTime: "09:40" },
+    { number: 3,  startTime: "10:00", endTime: "10:45" },
+    { number: 4,  startTime: "10:55", endTime: "11:40" },
+    { number: 5,  startTime: "14:00", endTime: "14:45" },
+    { number: 6,  startTime: "14:55", endTime: "15:40" },
+    { number: 7,  startTime: "16:00", endTime: "16:45" },
+    { number: 8,  startTime: "16:55", endTime: "17:40" },
+    { number: 9,  startTime: "19:00", endTime: "19:45" },
+    { number: 10, startTime: "19:55", endTime: "20:40" },
+    { number: 11, startTime: "20:50", endTime: "21:35" },
+    { number: 12, startTime: "21:45", endTime: "22:30" }
+  ];
+
   function getBaseUrl() {
     const fullUrl = String(window.location.href || "").split("#")[0];
     const match = fullUrl.match(/^(https?:\/\/.+?)\/eams\//i);
@@ -148,7 +164,7 @@
 
       const weeks = [];
       for (let weekIndex = 0; weekIndex < weeksBitmap.length; weekIndex++) {
-        if (weeksBitmap[weekIndex] === "1") weeks.push(weekIndex + 1);
+        if (weeksBitmap[weekIndex] === "1") weeks.push(weekIndex);
       }
 
       const indexRegex = /index\s*=\s*(\d+)\s*\*\s*unitCount\s*\+\s*(\d+);/g;
@@ -243,16 +259,41 @@
   function pickSemester(semesters) {
     if (!Array.isArray(semesters) || semesters.length === 0) return null;
 
-    const month = new Date().getMonth() + 1;
-    const preferSecondTerm = month >= 2 && month <= 8;
-    const keywords = preferSecondTerm ? ["2"] : ["1"];
+    const now = new Date();
+    const month = now.getMonth() + 1; // 1-12
+    const fullYear = now.getFullYear();
 
-    const matched = semesters.find(function (semester) {
-      const text = (semester.schoolYear + " " + semester.name).trim();
-      return keywords.some(function (keyword) { return text.indexOf(keyword) >= 0; });
+    // 根据当前月份推断当前学年起始年
+    // 2~8月: 当前学年起始年 = 去年（处于上一学年开始的新学年的第二学期）
+    // 9~1月: 当前学年起始年 = 当年（当前学年的第一学期）
+    const academicStartYear = (month >= 2 && month <= 8) ? fullYear - 1 : fullYear;
+    const targetSchoolYear = academicStartYear + "-" + (academicStartYear + 1);
+
+    // 优先精确匹配当前学年
+    const exactMatches = semesters.filter(function (s) {
+      return s.schoolYear === targetSchoolYear;
     });
 
-    return matched || semesters[0];
+    if (exactMatches.length > 0) {
+      if (month >= 2 && month <= 8) {
+        // 春季学期（第二学期）
+        return exactMatches.find(function (s) { return s.name === "2"; }) || exactMatches[0];
+      } else {
+        // 秋季学期（第一学期）
+        return exactMatches.find(function (s) { return s.name === "1"; }) || exactMatches[0];
+      }
+    }
+
+    // 兆底：从最新学期中根据月份偏好选择
+    const sorted = semesters.slice().sort(function (a, b) {
+      if (a.schoolYear !== b.schoolYear) return b.schoolYear.localeCompare(a.schoolYear);
+      return b.name.localeCompare(a.name);
+    });
+
+    if (month >= 2 && month <= 8) {
+      return sorted.find(function (s) { return s.name === "2"; }) || sorted[0];
+    }
+    return sorted.find(function (s) { return s.name === "1"; }) || sorted[0];
   }
 
   async function requestText(url, options) {
@@ -305,18 +346,49 @@
 
   (async function bootstrap() {
     try {
-      AndroidBridge.showToast("Parsing LNTU schedule...");
+      // 1. 显示引导公告
+      await window.AndroidBridgePromise.showAlert(
+        "辽工大教务导入",
+        "本脚本适配辽宁工程技术大学 WebVPN + EAMS 教务系统。\n" +
+        "请确保已登录教务系统并进入课表页面。\n" +
+        "学年学期将自动检测。",
+        "好的，开始导入"
+      );
+
+      // 2. 获取课程数据
+      AndroidBridge.showToast("正在获取课表数据...");
       const courses = await fetchCourses();
       if (!courses || courses.length === 0) {
-        throw new Error("No courses parsed. Please make sure the final schedule page is open.");
+        throw new Error("未解析到课程数据。请确认已进入课表页面且登录状态正常。");
       }
 
+      // 3. 保存课程
       await window.AndroidBridgePromise.saveImportedCourses(JSON.stringify(courses));
-      AndroidBridge.showToast("Parsed " + courses.length + " courses");
+
+      // 4. 保存预设作息时间
+      try {
+        await window.AndroidBridgePromise.savePresetTimeSlots(JSON.stringify(LntuTimeSlots));
+      } catch (e) {
+        AndroidBridge.showToast("课程已导入，作息时间导入失败：" + e.message);
+      }
+
+      // 5. 保存课表配置（26 周）
+      try {
+        await window.AndroidBridgePromise.saveCourseConfig(JSON.stringify({ semesterTotalWeeks: 26 }));
+      } catch (e) {
+        console.warn("保存课表配置失败（不影响导入）:", e);
+      }
+
+      // 6. 完成
+      AndroidBridge.showToast("成功导入 " + courses.length + " 门课程！");
       AndroidBridge.notifyTaskCompletion();
     } catch (error) {
       console.error("[LNTU_IMPORT]", error);
-      AndroidBridge.showToast(error && error.message ? error.message : "LNTU import failed");
+      await window.AndroidBridgePromise.showAlert(
+        "导入失败",
+        error && error.message ? error.message : String(error),
+        "确定"
+      );
     }
   })();
 })();

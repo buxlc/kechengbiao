@@ -29,8 +29,10 @@
     <string name="class_time_settings">上课时间设置</string>
     <string name="edu_account_manage">教务账号管理</string>
     <string name="about">关于</string>
-    <string name="widget_name">今日课表</string>
-    <string name="widget_desc">显示今日课程概览</string>
+    <string name="widget_small_name">课表小卡</string>
+    <string name="widget_small_desc">显示下一节课和倒计时</string>
+    <string name="widget_large_name">课表大卡</string>
+    <string name="widget_large_desc">显示当前课程和今日安排</string>
     <string name="confirm">确认</string>
     <string name="cancel">取消</string>
     <string name="delete">删除</string>

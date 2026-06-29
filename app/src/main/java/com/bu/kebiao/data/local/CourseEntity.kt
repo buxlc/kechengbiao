@@ -18,5 +18,6 @@ data class CourseEntity(
     val weekType: Int = 0,
     val weeks: String = "",
     val colorIndex: Int = 0,
-    val source: String = "manual"
+    val source: String = "manual",
+    val semesterId: String = "default"
 )

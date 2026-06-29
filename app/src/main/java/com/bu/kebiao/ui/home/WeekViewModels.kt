@@ -26,6 +26,54 @@ data class WeekCoursePlacement(
     val detailCourses: List<Course>
 )
 
+data class CourseCardTextLayout(
+    val fontScale: Float,
+    val titleMaxLines: Int,
+    val detailMaxLines: Int,
+    val horizontalPaddingDp: Int,
+    val verticalPaddingDp: Int,
+    val accentSpacingDp: Int,
+    val detailSpacingDp: Int,
+    val showDetailFallback: Boolean,
+    val includeWeekRange: Boolean
+)
+
+fun courseCardTextLayout(size: String): CourseCardTextLayout = when (size) {
+    "small" -> CourseCardTextLayout(
+        fontScale = 0.86f,
+        titleMaxLines = 7,
+        detailMaxLines = 7,
+        horizontalPaddingDp = 6,
+        verticalPaddingDp = 6,
+        accentSpacingDp = 4,
+        detailSpacingDp = 3,
+        showDetailFallback = true,
+        includeWeekRange = true
+    )
+    "large" -> CourseCardTextLayout(
+        fontScale = 1.14f,
+        titleMaxLines = 4,
+        detailMaxLines = 3,
+        horizontalPaddingDp = 8,
+        verticalPaddingDp = 8,
+        accentSpacingDp = 8,
+        detailSpacingDp = 6,
+        showDetailFallback = false,
+        includeWeekRange = false
+    )
+    else -> CourseCardTextLayout(
+        fontScale = 1f,
+        titleMaxLines = 6,
+        detailMaxLines = 5,
+        horizontalPaddingDp = 8,
+        verticalPaddingDp = 8,
+        accentSpacingDp = 6,
+        detailSpacingDp = 4,
+        showDetailFallback = true,
+        includeWeekRange = false
+    )
+}
+
 fun resolveCourseColor(course: Course, colorMap: Map<String, Int>): Course {
     val mappedColor = colorMap[course.name.trim()] ?: course.colorIndex
     return course.copy(colorIndex = mappedColor)

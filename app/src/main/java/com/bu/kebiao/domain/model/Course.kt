@@ -13,7 +13,8 @@ data class Course(
     val weekType: WeekType = WeekType.ALL,
     val weeks: List<Int> = emptyList(),
     val colorIndex: Int = 0,
-    val source: String = "manual"
+    val source: String = "manual",
+    val semesterId: String = "default"
 )
 
 enum class WeekType(val value: Int) {

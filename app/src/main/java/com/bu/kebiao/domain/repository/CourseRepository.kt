@@ -12,8 +12,12 @@ interface CourseRepository {
     suspend fun getCourseById(id: Long): Course?
     suspend fun insertCourse(course: Course): Long
     suspend fun insertCourses(courses: List<Course>)
+    suspend fun insertCoursesIntoSemester(courses: List<Course>, semesterId: String)
     suspend fun updateCourse(course: Course)
     suspend fun updateColorByCourseName(courseName: String, colorIndex: Int)
     suspend fun deleteCourse(course: Course)
     suspend fun deleteBySource(source: String)
+    suspend fun deleteCurrentSemesterCourses()
+    suspend fun deleteSemesterCourses(semesterId: String)
+    fun getAllCoursesBySemester(semesterId: String): Flow<List<Course>>
 }

@@ -22,6 +22,7 @@ object CsvTextCourseParser {
             .lines()
             .map { it.trim() }
             .filter { it.isNotBlank() }
+            .filterNot { it.startsWith("#") }
 
         lines.forEachIndexed { index, line ->
             if (isHeader(line)) return@forEachIndexed
@@ -73,6 +74,7 @@ object CsvTextCourseParser {
 
     private fun normalizeCsvFields(fields: List<String>): List<String>? {
         if (fields.size == 7) return fields
+        if (fields.size == 8) return fields.take(7)
         if (fields.size == 6) {
             val last = fields[5]
             val split = splitTeacherLocation(last) ?: return null

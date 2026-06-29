@@ -27,7 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
+
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bu.kebiao.data.adapter.AdapterInfo
 import com.bu.kebiao.data.adapter.SchoolInfo
 import com.bu.kebiao.domain.model.Course
+import com.bu.kebiao.domain.model.Semester
 import com.bu.kebiao.ui.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -149,8 +150,10 @@ private fun EduImportFlow(state: ImportUiState, viewModel: ImportViewModel) {
                 schools = state.filteredSchools,
                 searchQuery = state.searchQuery,
                 isLoading = state.isSchoolListLoading,
+                isRefreshing = state.isRefreshingAdapter,
                 onSearchChanged = viewModel::onSearchQueryChanged,
-                onSchoolSelected = viewModel::onSchoolSelected
+                onSchoolSelected = viewModel::onSchoolSelected,
+                onRefreshCloudSchools = viewModel::refreshCloudSchoolPresets
             )
             ImportScreen.AdapterList -> AdapterListContent(
                 school = state.selectedSchool,
@@ -159,10 +162,14 @@ private fun EduImportFlow(state: ImportUiState, viewModel: ImportViewModel) {
             ImportScreen.WebView -> WebViewContent(state = state, viewModel = viewModel)
             ImportScreen.CsvText -> CsvTextImportContent(state = state, viewModel = viewModel)
             ImportScreen.Preview -> CoursePreviewContent(
+                state = state,
                 courses = state.parsedCourses,
                 importResult = state.importResult,
                 onConfirm = viewModel::confirmImport,
-                onBack = viewModel::onBackFromPreview
+                onBack = viewModel::onBackFromPreview,
+                onImportAsNewChanged = viewModel::setImportAsNewSemester,
+                onSemesterSelected = viewModel::selectImportSemester,
+                onNewSemesterNameChanged = viewModel::onNewImportSemesterNameChanged
             )
         }
     }
@@ -171,6 +178,12 @@ private fun EduImportFlow(state: ImportUiState, viewModel: ImportViewModel) {
 // Edu Home - Two mode selector
 @Composable
 private fun EduHomeContent(state: ImportUiState, viewModel: ImportViewModel) {
+    val icsFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let(viewModel::parseIcsFile)
+    }
+
     Column {
         Text(
             text = "\u9009\u62e9\u5bfc\u5165\u65b9\u5f0f",
@@ -196,7 +209,7 @@ private fun EduHomeContent(state: ImportUiState, viewModel: ImportViewModel) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.Link,
+                        Icons.Default.Info,
                         null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
@@ -214,7 +227,7 @@ private fun EduHomeContent(state: ImportUiState, viewModel: ImportViewModel) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -235,7 +248,7 @@ private fun EduHomeContent(state: ImportUiState, viewModel: ImportViewModel) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.School,
+                        Icons.Default.Home,
                         null,
                         tint = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(28.dp)
@@ -253,7 +266,46 @@ private fun EduHomeContent(state: ImportUiState, viewModel: ImportViewModel) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Mode 4: ICS calendar file
+        Surface(
+            onClick = {
+                viewModel.selectEduMode(EduImportMode.IcsFile)
+                icsFileLauncher.launch(arrayOf("text/calendar", "application/ics", "application/octet-stream", "*/*"))
+            },
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.DateRange,
+                        null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "ICS\u65e5\u5386\u5bfc\u5165",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "\u9009\u62e9 .ics \u65e5\u5386\u6587\u4ef6\uff0c\u9002\u5408 WakeUp/\u7cfb\u7edf\u65e5\u5386\u5bfc\u51fa\u7684\u8bfe\u7a0b\u8868",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(Icons.Default.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -271,7 +323,7 @@ private fun EduHomeContent(state: ImportUiState, viewModel: ImportViewModel) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.UploadFile,
+                        Icons.Default.Add,
                         null,
                         tint = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(28.dp)
@@ -289,7 +341,7 @@ private fun EduHomeContent(state: ImportUiState, viewModel: ImportViewModel) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -315,7 +367,7 @@ private fun EduHomeContent(state: ImportUiState, viewModel: ImportViewModel) {
                     placeholder = { Text("\u8f93\u5165\u6559\u52a1\u7cfb\u7edf\u7f51\u5740\uff0c\u5982 jwgl.xxx.edu.cn") },
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Https, null, modifier = Modifier.size(18.dp)) }
+                    leadingIcon = { Icon(Icons.Default.Lock, null, modifier = Modifier.size(18.dp)) }
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 FilledIconButton(
@@ -342,26 +394,43 @@ private fun SchoolListContent(
     schools: List<SchoolInfo>,
     searchQuery: String,
     isLoading: Boolean,
+    isRefreshing: Boolean,
     onSearchChanged: (String) -> Unit,
-    onSchoolSelected: (SchoolInfo) -> Unit
+    onSchoolSelected: (SchoolInfo) -> Unit,
+    onRefreshCloudSchools: () -> Unit
 ) {
     Column {
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchChanged,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("\u641c\u7d22\u5b66\u6821\u540d\u79f0...") },
-            leadingIcon = { Icon(Icons.Default.Search, "\u641c\u7d22") },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { onSearchChanged("") }) {
-                        Icon(Icons.Default.Clear, "\u6e05\u9664", modifier = Modifier.size(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchChanged,
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("\u641c\u7d22\u5b66\u6821\u540d\u79f0...") },
+                leadingIcon = { Icon(Icons.Default.Search, "\u641c\u7d22") },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { onSearchChanged("") }) {
+                            Icon(Icons.Default.Clear, "\u6e05\u9664", modifier = Modifier.size(18.dp))
+                        }
                     }
+                },
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            FilledIconButton(
+                onClick = onRefreshCloudSchools,
+                enabled = !isRefreshing,
+                modifier = Modifier.size(48.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                if (isRefreshing) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Default.Refresh, "\u5237\u65b0\u5b66\u6821\u9884\u8bbe", modifier = Modifier.size(20.dp))
                 }
-            },
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true
-        )
+            }
+        }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "\u5171 ${schools.size} \u6240\u5b66\u6821",
@@ -406,7 +475,7 @@ private fun SchoolListItem(school: SchoolInfo, onClick: () -> Unit) {
                 Text(text = school.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                 Text(text = "${school.adapters.size} \u4e2a\u9002\u914d\u5668", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -440,7 +509,7 @@ private fun AdapterCard(adapter: AdapterInfo, onClick: () -> Unit) {
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Code, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(text = adapter.adapterName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 if (adapter.importUrl.isNotBlank()) {
@@ -512,12 +581,12 @@ private fun CsvTextImportContent(state: ImportUiState, viewModel: ImportViewMode
                 },
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("复制提示词")
             }
             OutlinedButton(onClick = { showGuide = true }, modifier = Modifier.weight(1f)) {
-                Icon(Icons.AutoMirrored.Filled.HelpOutline, null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Info, null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("查看教程")
             }
@@ -529,7 +598,7 @@ private fun CsvTextImportContent(state: ImportUiState, viewModel: ImportViewMode
             onClick = { fileLauncher.launch(arrayOf("text/*", "text/csv", "application/csv", "application/vnd.ms-excel")) },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Icons.Default.FolderOpen, null, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.List, null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(6.dp))
             Text("选择 CSV / TXT 文件")
         }
@@ -565,7 +634,7 @@ private fun CsvTextImportContent(state: ImportUiState, viewModel: ImportViewMode
                 .height(48.dp),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Icon(Icons.Default.Preview, null, modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.Search, null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(6.dp))
             Text("解析并预览")
         }
@@ -673,6 +742,17 @@ private fun WebViewContent(state: ImportUiState, viewModel: ImportViewModel) {
                         settings.allowFileAccessFromFileURLs = true
                         if (preferDesktopMode) {
                             settings.userAgentString = desktopUserAgent
+                        }
+                        // 禁用 X-Requested-With 请求头，避免教务系统/VPN拒绝请求
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                            runCatching {
+                                val mode = WebSettings::class.java
+                                    .getField("REQUESTED_WITH_HEADER_MODE_NO_HEADER")
+                                    .getInt(null)
+                                WebSettings::class.java
+                                    .getMethod("setRequestedWithHeaderMode", Int::class.javaPrimitiveType)
+                                    .invoke(settings, mode)
+                            }
                         }
                         val cookieManager = android.webkit.CookieManager.getInstance()
                         cookieManager.setAcceptCookie(true)
@@ -804,6 +884,20 @@ private fun WebViewContent(state: ImportUiState, viewModel: ImportViewModel) {
                     Icon(Icons.Default.Refresh, "\u5237\u65b0", modifier = Modifier.size(16.dp))
                 }
                 IconButton(
+                    onClick = { viewModel.refreshCloudAdapterScript() },
+                    enabled = !state.isRefreshingAdapter,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    if (state.isRefreshingAdapter) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(Icons.Default.Refresh, "\u5237\u65b0\u811a\u672c", modifier = Modifier.size(16.dp))
+                    }
+                }
+                IconButton(
                     onClick = {
                         isDesktopMode = !isDesktopMode
                         webViewRef?.let { wv ->
@@ -813,12 +907,12 @@ private fun WebViewContent(state: ImportUiState, viewModel: ImportViewModel) {
                     },
                     modifier = Modifier.size(32.dp)
                 ) {
-                    Icon(if (isDesktopMode) Icons.Default.DesktopWindows else Icons.Default.PhoneAndroid, null,
+                    Icon(if (isDesktopMode) Icons.Default.Home else Icons.Default.Phone, null,
                         modifier = Modifier.size(16.dp),
                         tint = if (isDesktopMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = { showUrlBar = !showUrlBar }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Link, "\u5730\u5740\u680f", modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Info, "\u5730\u5740\u680f", modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -829,10 +923,14 @@ private fun WebViewContent(state: ImportUiState, viewModel: ImportViewModel) {
 // Course Preview with proper feedback
 @Composable
 private fun CoursePreviewContent(
+    state: ImportUiState,
     courses: List<Course>,
     importResult: Boolean?,
     onConfirm: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onImportAsNewChanged: (Boolean) -> Unit,
+    onSemesterSelected: (String) -> Unit,
+    onNewSemesterNameChanged: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         if (courses.isEmpty()) {
@@ -853,6 +951,18 @@ private fun CoursePreviewContent(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ImportTargetContent(
+                semesters = state.semesters,
+                importAsNewSemester = state.importAsNewSemester,
+                selectedSemesterId = state.selectedImportSemesterId,
+                newSemesterName = state.newImportSemesterName,
+                onImportAsNewChanged = onImportAsNewChanged,
+                onSemesterSelected = onSemesterSelected,
+                onNewSemesterNameChanged = onNewSemesterNameChanged
+            )
+
             Spacer(modifier = Modifier.height(12.dp))
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
@@ -885,6 +995,88 @@ private fun CoursePreviewContent(
                     Spacer(modifier = Modifier.width(6.dp))
                 }
                 Text(text = buttonText, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImportTargetContent(
+    semesters: List<Semester>,
+    importAsNewSemester: Boolean,
+    selectedSemesterId: String,
+    newSemesterName: String,
+    onImportAsNewChanged: (Boolean) -> Unit,
+    onSemesterSelected: (String) -> Unit,
+    onNewSemesterNameChanged: (String) -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = "导入到学期",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                FilterChip(
+                    selected = importAsNewSemester || semesters.isEmpty(),
+                    onClick = { onImportAsNewChanged(true) },
+                    label = { Text("新建学期") },
+                    leadingIcon = if (importAsNewSemester || semesters.isEmpty()) {
+                        { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
+                FilterChip(
+                    selected = !importAsNewSemester && semesters.isNotEmpty(),
+                    onClick = { if (semesters.isNotEmpty()) onImportAsNewChanged(false) },
+                    enabled = semesters.isNotEmpty(),
+                    label = { Text("覆盖已有") },
+                    leadingIcon = if (!importAsNewSemester && semesters.isNotEmpty()) {
+                        { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (importAsNewSemester || semesters.isEmpty()) {
+                OutlinedTextField(
+                    value = newSemesterName,
+                    onValueChange = onNewSemesterNameChanged,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("新学期名称") },
+                    shape = RoundedCornerShape(10.dp)
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    semesters.forEach { semester ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onSemesterSelected(semester.id) }
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = semester.id == selectedSemesterId,
+                                onClick = { onSemesterSelected(semester.id) }
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(semester.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                Text("${semester.courseCount} 门课，将被覆盖", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
             }
         }
     }

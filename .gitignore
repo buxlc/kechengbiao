@@ -12,3 +12,5 @@ local.properties
 .superpowers/
 docs/superpowers/
 备份*/
+local-signing/
+node_modules/

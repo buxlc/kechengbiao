@@ -9,11 +9,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.EditCalendar
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Remove
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -128,7 +128,7 @@ fun CourseQuickEditSheet(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Save, contentDescription = null, tint = Color.White)
+                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("\u4fdd\u5b58", color = Color.White, fontWeight = FontWeight.Bold)
                 }
@@ -144,7 +144,7 @@ fun CourseQuickEditSheet(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.EditCalendar, contentDescription = null)
+                    Icon(Icons.Default.Edit, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("\u66f4\u591a\u8bbe\u7f6e", fontWeight = FontWeight.SemiBold)
                 }
@@ -154,7 +154,7 @@ fun CourseQuickEditSheet(
         if (isEditMode && onDelete != null) {
             Spacer(modifier = Modifier.height(10.dp))
             TextButton(onClick = onDelete, modifier = Modifier.align(Alignment.End)) {
-                Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("\u5220\u9664\u8bfe\u7a0b", color = MaterialTheme.colorScheme.error)
             }
@@ -238,9 +238,9 @@ private fun SectionStepper(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = onDecrease) { Icon(Icons.Outlined.Remove, contentDescription = null) }
+                IconButton(onClick = onDecrease) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) }
                 Text(text = value.toString(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                IconButton(onClick = onIncrease) { Icon(Icons.Outlined.Add, contentDescription = null) }
+                IconButton(onClick = onIncrease) { Icon(Icons.Default.Add, contentDescription = null) }
             }
         }
     }

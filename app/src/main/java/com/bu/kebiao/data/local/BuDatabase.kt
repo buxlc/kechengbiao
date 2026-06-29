@@ -8,14 +8,15 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [CourseEntity::class, ClassTimeEntity::class, CourseColorEntity::class],
-    version = 5,
+    entities = [CourseEntity::class, ClassTimeEntity::class, CourseColorEntity::class, SemesterEntity::class],
+    version = 6,
     exportSchema = false
 )
 abstract class BuDatabase : RoomDatabase() {
     abstract fun courseDao(): CourseDao
     abstract fun classTimeDao(): ClassTimeDao
     abstract fun courseColorDao(): CourseColorDao
+    abstract fun semesterDao(): SemesterDao
 
     companion object {
         @Volatile
@@ -48,6 +49,28 @@ abstract class BuDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE plans ADD COLUMN endTime TEXT")
             }
         }
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS semesters (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        startDate INTEGER NOT NULL DEFAULT 0,
+                        totalWeeks INTEGER NOT NULL DEFAULT 20,
+                        createdAt INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("ALTER TABLE courses ADD COLUMN semesterId TEXT NOT NULL DEFAULT 'default'")
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO semesters (id, name, startDate, totalWeeks, createdAt)
+                    VALUES ('default', '默认学期', 0, 20, strftime('%s','now') * 1000)
+                    """.trimIndent()
+                )
+            }
+        }
         fun getInstance(context: Context): BuDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -56,7 +79,7 @@ abstract class BuDatabase : RoomDatabase() {
                     "bu_kebiao.db"
                 )
                     .addCallback(DefaultDataCallback())
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                 INSTANCE = instance
                 instance
@@ -87,6 +110,9 @@ abstract class BuDatabase : RoomDatabase() {
                     arrayOf(time.sectionNumber, time.startTime, time.endTime)
                 )
             }
+            db.execSQL(
+                "INSERT OR IGNORE INTO semesters (id, name, startDate, totalWeeks, createdAt) VALUES ('default', '默认学期', 0, 20, strftime('%s','now') * 1000)"
+            )
         }
     }
 }

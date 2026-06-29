@@ -1,0 +1,27 @@
+{
+  "name": "kechengbiao",
+  "version": "1.0.0",
+  "description": "Bu课表是一款面向大学生日常使用的 Android 课程表应用。第一版重点放在轻量、清晰、可维护：课程数据保存在本地，支持手动维护、学校教务导入，以及 AI 截图识别后的 CSV/文本导入。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/buxlc/kechengbiao.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/buxlc/kechengbiao/issues"
+  },
+  "homepage": "https://github.com/buxlc/kechengbiao#readme",
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1075.0"
+  }
+}

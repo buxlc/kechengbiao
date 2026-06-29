@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,8 +26,8 @@ enum class NavDestination(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
 ) {
-    Home("课表", "home", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth),
-    Settings("设置", "settings", Icons.Filled.Settings, Icons.Outlined.Settings)
+    Home("课表", "home", Icons.Filled.Home, Icons.Filled.Home),
+    Settings("设置", "settings", Icons.Filled.Settings, Icons.Filled.Settings)
 }
 
 @Composable
