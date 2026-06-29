@@ -125,7 +125,7 @@ docs/
 
 当前版本以本地课程表管理、学期数据管理和导入能力为核心。不同学校的教务系统差异较大，教务导入适配会持续迭代；AI 截图/CSV/文本导入用于补充暂未适配学校的使用场景。
 
-##云端更新课表
+## 云端更新课表
 可以通过ai帮你全自动写脚本，并且提交到云端（如果你需要）。请选择有浏览器插件的agent工作。提示词已在项目内。
 ---text
 docs/adapter-development-and-publishing-workflow.md
@@ -133,4 +133,5 @@ docs/adapter-development-and-publishing-workflow.md
 
 ## 致谢
 
-教务导入部分参考了https://github.com/XingHeYuZhuan/shiguangschedule/wiki/%E5%A6%82%E4%BD%95%E9%80%82%E9%85%8D%E6%95%99%E5%8A%A1，感谢分享
+教务导入部分参考了https://github.com/XingHeYuZhuan/shiguangschedule/wiki/%E5%A6%82%E4%BD%95%E9%80%82%E9%85%8D%E6%95%99%E5%8A%A1 
+感谢分享
